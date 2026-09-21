@@ -1,0 +1,303 @@
+START PROJECT  
+
+Connect kar te time mene jo package instal kiye he vo Jo Sabse Jaruri he Connect kar ne keliye 
+1)React.js
+axios
+<!-- npm install axios -->
+2)Django
+restframework AND cors-headers
+<!-- pip install djangorestframework django-cors-headers
+NOTE:- restframework AND cors-headers Install karne ke bad Sabse Jaruri unhe Setting.py me add karna 
+A)
+Install_app :- 
+'rest_framework',
+'corsheaders',
+B)
+MIDDLEWARE :-
+'corsheaders.middleware.CorsMiddleware',  # Ye line top par honi chahiye
+'django.middleware.security.SecurityMiddleware', 
+C)
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # React ka URL
+    "http://127.0.0.1:3000",
+]
+-->
+
+
+3) In Start Super Admin Login Add Kare ge Ham
+A)Model.py
+I create Model (Login Model)
+==> Login Model Banane Keliye Mene Django Ke inbuld User Table KA use Kiya he 
+AbstractUser 
+ise use karne keliye Jaru Ri Chi je 
+
+from django.contrib.auth.models import AbstractUser
+
+class (ANY)(AbstractUser):
+
+        def __str__(self):
+        name = self.first_name if self.first_name else self.username 
+        role = self.Select_User if self.Select_User else 'USER'
+        return f"{name} ({role})"
+
+===>settings.py Me Last ME Ye Line Add Karo
+AUTH_USER_MODEL = 'Hospital_Management_App.Login'
+
+
+name = self.first_name if self.first_name else self.username 
+role = self.Select_User if self.Select_User else 'USER'
+return f"{name} ({role})"
+Ye ius liye add kiye taki vo Model Me use ho rahe Redimed Table mese name And role Upar Heading ki trah 
+dikhaye 
+
+AB JAB HAM DJANGO KA REDYMED USER USE KAR RAH EHE TO US TABLE KO APNE HI SAB SE SET KARNE KELIYE MENE Admin.py me kuch Change And Add kiya 
+B)Admin.py
+How I Make And What I use To Create In Details.
+
+<!-- 
+class LoginAdmin(UserAdmin):
+    # Admin list view me dikhane ke liye
+    list_display = ['username', 'Select_User']
+    
+    # Existing user ko edit karte waqt field dikhane ke liye
+    fieldsets = UserAdmin.fieldsets + (
+        ('Custom Fields', {'fields': ('Select_User',)}),
+    )   
+    
+    # Naya User ADD karte waqt form me field dikhane ke liye
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        ('Custom Fields', {'fields': ('Select_User',)}),
+    )
+
+admin.site.register(Login, LoginAdmin) -->
+
+
+=>list_display = Django Admin me table/list page par kaunse model fields dikhane hain ye decide karta hai. 
+list_display = ['name', 'price', 'stock']
+
+=>list_filter = Django Admin me data ko filter karne ka option add karta hai.
+list_filter = ['status', 'category']
+
+=>search_fields = Django Admin me records ko search karne ka option add karta hai.ha jo dege uske hisab se vo un fild me che ck kar ke serch kare ga and Result Return Kare Ga
+search_fields = ['name', 'email']
+
+
+
+C)serializers.py
+
+
+
+
+
+
+__________________________________________________________________________________________________________________________________________
+STARTING SUPER ADMIN
+iske liye Backend Memene New App Banayi Jiske Ander uske views,urls,models,serializer 
+add kar ke project me add karke connect karu ga ta ki code lendth ho to bhi smaj ne me aasan ho.
+
+1)START WORK IN HOSPITAL PAGE
+A)FRIST CREATE MODEL
+(Details:- is model me normaly sari Fildes Add ki he Lekin Muze Auto Junreate Id Cahi ye To me Aese Banau ga.)
+
+import random
+from django.db import models
+
+class Hospitals(models.Model):
+    Name = models.CharField(max_length=100)
+    city = models.CharField(max_length=50)  # City name (jaise Mumbai)
+    area = models.CharField(max_length=50)  # Area name (jaise Andheri)
+    branch_code = models.CharField(max_length=30, unique=True, blank=True) # Auto-generated code
+    address = models.TextField()
+    contact = models.CharField(max_length=11)
+    email = models.EmailField(unique=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.branch_code:
+            # City aur Area ke shuru ke 3-3 letters uppercase me lenge (short code ke liye)
+            city_code = self.city[:3].upper()
+            area_code = self.area[:3].upper()
+            
+            # 4 digit ka random number generate karenge
+            random_digits = str(random.randint(1000, 9999))
+            
+            # Format: CITY-AREA-4digits (jaise: MUM-AND-4821)
+            generated_code = f"{city_code}-{area_code}-{random_digits}"
+            
+            # Ensure karein ki yeh code unique ho
+            while Hospitals.objects.filter(branch_code=generated_code).exists():
+                random_digits = str(random.randint(1000, 9999))
+                generated_code = f"{city_code}-{area_code}-{random_digits}"
+                
+            self.branch_code = generated_code
+            
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.Name} ({self.branch_code})"
+
+====>DETAIL EXPLANATION:-
+1. Overall Code Ka Purpose
+=>Hospitals model hospital ki details database mein store karta hai aur save() method ke through automatically unique branch code generate karta 
+2. import random
+=>Python ka random module import kiya hai.
+=>random module ka use 4-digit random number generate karne ke liye kiya hai.
+3. def save(self, *args, **kwargs)
+=>save() method ko override kiya hai taaki hospital save hone se pehle branch code automatically generate ho.
+4. if not self.branch_code
+=>Ye condition ensure karti hai ki branch code sirf tab generate ho jab pehle se available na ho.
+5. city_code
+=>City ke first 3 characters leta hai.
+=>city_code city ke first 3 letters ko uppercase mein convert karta hai.
+6.area_code
+=>Area ke first 3 characters leta hai.
+=>area_code area ke first 3 letters ko uppercase mein convert karta hai.
+7.random_digits = str(random.randint(1000, 9999))
+=>random.randint() 1000 se 9999 ke beech random 4-digit number generate karta hai aur str() use string mein convert karta hai.
+Why str()?
+Kyuki baad mein is number ko string ke saath combine karna hai.
+8. generated_code
+=>f-string city code, area code aur random number ko combine karke final branch code banati hai.
+9. while(Most Importent)
+=>while loop duplicate branch code ko check karta hai aur duplicate milne par naya random code generate karta hai.
+10. self.branch_code
+=>Generated code ko current hospital object ke branch_code field mein assign karta hai.
+11. super().save(*args, **kwargs)
+=>Ye actual Django save operation call karta hai.Iske bina customized save() method database mein record save nahi karega.
+12. __str__
+=>__str__() Django Admin aur Python mein object ko readable format mein display karne ke liye use hota hai.
+
+
+
+2)SERIALIZERS ME WORK
+A)CREATE Serializer (ye file Hame Personaly Create Karni Padti he New Created App Me)
+from rest_framework import serializers
+from .models import Hospitals
+
+class Hospitalsserializer(serializers.ModelSerializer):
+    class Meta:
+        model = Hospitals
+        fields = '__all__'
+        read_only_fields = ['branch_code', 'created_at']
+
+1. from rest_framework import serializers
+=>DRF ka serializer module import kiya hai, jisse hum serializer bana sakein.
+2. from .models import Hospitals
+=>Hospitals model ko serializer ke andar use karne ke liye import kiya hai.
+3. class Hospitalsserializer
+=>Yahan hum Hospitalsserializer naam ka serializer bana rahe hain.
+=>serializers.ModelSerializer ?
+=>serializers.ModelSerializer mein serializers Django REST Framework (DRF) ka module hai aur ModelSerializer us module ke andar ki 
+class hai. ModelSerializer Django model ke basis par serializer fields automatically create karta hai aur API data ko serialize, 
+deserialize aur validate karne mein help karta hai.
+4. class Meta
+=>Meta serializer ki configuration define karti hai.
+Kaunsa model use karna hai?-Kaunse fields chahiye?-Kaunse fields read-only hain?
+5. model = Hospitals
+=>model = Hospitals serializer ko Hospitals model ke saath connect karta hai.
+6. fields = '__all__'
+=>__all__ model ke saare fields ko serializer mein include karta hai.
+7. read_only_fields
+=>Ye batata hai ki kaunse fields read-only hain. Read-only ka simple meaning API request se user in fields ko manually set/update nahi kar sakta.
+
+
+3)VIEWS ME WORK
+CREATE VIEWSET
+class Hospitalsviewset(viewsets.ModelViewSet):
+    queryset = Hospitals.objects.all()
+    serializer_class = Hospitalsserializer
+
+NORMALY CREATE KIYA HE IS LIYE NO EXPLANITIO
+
+
+4)URLS ME WORK
+CREATE URL (ye file Hame Personaly Create Karni Padti he New Created App Me)
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+
+from Super_Admin.views import Hospitalsviewset
+
+
+router = DefaultRouter()
+router.register(r'Hospital',Hospitalsviewset)
+
+urlpatterns =[
+    path('',include(router.urls)),
+]
+
+NORMALY CREATE KIYA HE IS LIYE NO EXPLANITIO
+
+
+
+______________MAIN URLS.PY ME ADD KARO ADMIN APP KA URL______________
+path('api/super-admin/', include('Super_Admin.urls')),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Login Flow (Complete Round-Trip)
+Login.jsx (React Page) =>
+user_login API View (/api/user-login/) => Login (Django Database) =>
+Database Validation (Match Success) => API JSON Response (200 OK) =>
+Login.jsx (React State / Alert & State Update setIsLoggedIn(true)) =>
+Home.jsx (Home Page / Dashboard)
+
+Sign In / Register Flow (Complete Round-Trip)
+SignIn.jsx (React Page) =>
+Loginviewset API View (/api/Login/) => Loginserializer (Validation: Email check & Password Hashing) =>
+Login (Django Database / New User Saved) => API JSON Response (201 Created) =>
+SignIn.jsx (React Alert & State Update setCurrentPage('login')) => Login.jsx (Login Page Redirect)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SUPER ADMIN PAGEIS
+DASHBORD
+DOCTOR
+NURCES
+PASHANTS
+HOSPITALS

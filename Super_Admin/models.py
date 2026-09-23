@@ -82,7 +82,7 @@ class Doctor(models.Model):
     doctor_id = models.CharField(max_length=50, unique=True, blank=True)
     specialization = models.TextField(help_text="Enter one or more specializations")
     additional_skills = models.TextField(blank=True, null=True)
-    department = models.TextField(blank=True, null=True, help_text="Enter departments associated with selected hospitals")
+    department = models.TextField(blank=True, null=True)
     qualification = models.CharField(max_length=150)
     experience = models.CharField(max_length=50)
     opd_timings = models.CharField(max_length=100)
@@ -92,7 +92,7 @@ class Doctor(models.Model):
     status = models.CharField(max_length=50, default='Available')
     is_active = models.BooleanField(default=True)
     created_at = models.DateField(auto_now_add=True)
-
+    consultation_fee = models.DecimalField(max_digits=10,decimal_places=2,default=0)
     def save(self, *args, **kwargs):
         if not self.doctor_id:
             import random
@@ -104,7 +104,7 @@ class Doctor(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.name} ({self.specialization}) - {self.doctor_id}"
+        return f"{self.name} - {self.doctor_id}"
 
 
 
@@ -216,24 +216,35 @@ class Patient(models.Model):
         ('Cancelled', 'Cancelled'),
     ]
 
+    PAYMENT_STATUS_CHOICES = [
+        ('Paid', 'Paid'),
+        ('Partial', 'Partial'),
+        ('Pending', 'Pending'),
+        ('Failed', 'Failed'),
+    ]
+
     hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, related_name='patients', null=True, blank=True)
     doctor = models.ForeignKey(Doctor, on_delete=models.SET_NULL, related_name='patient_appointments', null=True, blank=True, help_text="Assigned automatically or by receptionist based on availability")
     
     name = models.CharField(max_length=100)
     patient_id = models.CharField(max_length=50, unique=True, blank=True)
     
-    # Separated age and gender
     age = models.IntegerField(null=True, blank=True)
     gender = models.CharField(max_length=20, choices=GENDER_CHOICES, default='Male')
-    
+    address = models.TextField()
     contact = models.CharField(max_length=20)
     email = models.EmailField(blank=True, null=True)
     
     visit_date_time = models.DateTimeField(null=True, blank=True) 
     applied_at = models.DateTimeField(auto_now_add=True)
     
-    symptoms_diagnosis = models.TextField(help_text="Patient describes symptoms or illness",blank=True,null=True) 
+    symptoms_diagnosis = models.TextField(help_text="Patient describes symptoms or illness", blank=True, null=True) 
     attached_document = models.FileField(upload_to='patient_documents/', blank=True, null=True, help_text="Upload prescription, photo, or medical PDF report")
+    
+    consultation_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='Pending')
+    payment_method = models.CharField(max_length=50, blank=True, null=True, help_text="e.g., Cash, UPI, Credit Card")
     
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Pending') 
     is_active = models.BooleanField(default=True)
@@ -250,7 +261,7 @@ class Patient(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.name} ({self.patient_id}) - Hospital: {self.hospital}"
+        return f"{self.name} ({self.patient_id}) - Paid: ₹{self.amount_paid}"
 
 
     

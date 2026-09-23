@@ -1,10 +1,13 @@
 from django.shortcuts import render
-from rest_framework import viewsets, status
+from rest_framework import viewsets
 from Hospital_Management_App.models import Login
 from Hospital_Management_App.serializers import Loginserializer
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from django.contrib.auth import authenticate
+from django.contrib.auth import get_user_model
+
+
+from Super_Admin.models import Doctor, HospitalAdmin, Nurse, Receptionist
 
 
 
@@ -18,27 +21,73 @@ class Loginviewset(viewsets.ModelViewSet):
 
 
 
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from django.contrib.auth.models import User
+from Super_Admin.models import HospitalAdmin, Doctor, Nurse, Receptionist
+
 @api_view(['POST'])
-def user_login(request):
-    email = request.data.get('email')
-    password = request.data.get('password')
+def user_login(api_request):
+    email = api_request.data.get('email')
+    password = api_request.data.get('password')
 
     if not email or not password:
-        return Response({'message': 'Email and password are required!'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message": "Email and password are required."}, status=400)
 
-    try:
-        # Email case-insensitive search (small/capital letters ka issue khatam)
-        user_obj = Login.objects.get(email__iexact=email)
-        
-        # Django ke check_password se password verify karna
-        if user_obj.check_password(password):
+    # Get the active user model safely
+    User = get_user_model()
+
+    # 1. Check in Custom User Model (Superuser / Admin)
+    django_user = User.objects.filter(email=email).first()
+    if not django_user:
+        django_user = User.objects.filter(username=email).first()
+
+    if django_user and django_user.check_password(password):
+        if django_user.is_superuser or django_user.is_staff:
             return Response({
-                'message': 'Login successful!',
-                'firstName': user_obj.first_name,
-                'role': user_obj.Select_User
-            }, status=status.HTTP_200_OK)
-        else:
-            return Response({'message': 'Invalid email or password!'}, status=status.HTTP_400_BAD_REQUEST)
-            
-    except Login.DoesNotExist:
-        return Response({'message': 'Account not found! Please sign up first.'}, status=status.HTTP_404_NOT_FOUND)
+                "message": "Login successful",
+                "role": "SUPER_ADMIN",
+                "user": {
+                    "id": django_user.id,
+                    "name": getattr(django_user, 'name', None) or django_user.get_full_name() or django_user.username,
+                    "email": django_user.email or django_user.username,
+                    "role": "SUPER_ADMIN"
+                }
+            }, status=200)
+
+    # 2. Check in HospitalAdmin
+    user = HospitalAdmin.objects.filter(email=email, password=password).first()
+    role = "HOSPITAL_ADMIN" if user else None
+
+    # 3. Check in Doctor
+    if not user:
+        user = Doctor.objects.filter(email=email, password=password).first()
+        role = "DOCTOR" if user else None
+
+    # 4. Check in Nurse
+    if not user:
+        user = Nurse.objects.filter(email=email, password=password).first()
+        role = "NURSE" if user else None
+
+    # 5. Check in Receptionist
+    if not user:
+        user = Receptionist.objects.filter(email=email, password=password).first()
+        role = "RECEPTIONIST" if user else None
+
+    if user:
+        if not getattr(user, 'is_active', True):
+            return Response({"message": "Account is deactivated. Contact Administrator."}, status=403)
+
+        return Response({
+            "message": "Login successful",
+            "role": role,
+            "user": {
+                "id": user.id,
+                "name": getattr(user, 'name', 'User'),
+                "email": user.email,
+                "role": role,
+                "hospital": getattr(user, 'hospital_id', getattr(user, 'hospitals', None))
+            }
+        }, status=200)
+    
+    return Response({"message": "Invalid email or password."}, status=401)

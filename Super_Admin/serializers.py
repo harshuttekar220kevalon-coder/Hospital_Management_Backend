@@ -22,12 +22,14 @@ class DoctorSerializer(serializers.ModelSerializer):
     hospitals = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Hospitals.objects.all(), required=False)
     hospital_names = serializers.SerializerMethodField()
+
     class Meta:
         model = Doctor
         fields = '__all__'
+
     def get_hospital_names(self, obj):
         return [{"id": h.id, "name": h.Name, "branch_code": h.Branch_Code} for h in obj.hospitals.all()]
-
+ 
 
 class NurseSerializer(serializers.ModelSerializer):
     class Meta:

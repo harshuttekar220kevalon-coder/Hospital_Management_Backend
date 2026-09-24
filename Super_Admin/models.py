@@ -82,7 +82,7 @@ class Doctor(models.Model):
     doctor_id = models.CharField(max_length=50, unique=True, blank=True)
     specialization = models.TextField(help_text="Enter one or more specializations")
     additional_skills = models.TextField(blank=True, null=True)
-    department = models.TextField(blank=True, null=True)
+    department = models.TextField(blank=True, null=True, default=None)
     qualification = models.CharField(max_length=150)
     experience = models.CharField(max_length=50)
     opd_timings = models.CharField(max_length=100)
@@ -144,8 +144,8 @@ class Nurse(models.Model):
     experience = models.CharField(max_length=50, blank=True, null=True)
     contact = models.CharField(max_length=20)
     email = models.EmailField(unique=True)
-    password = models.CharField(max_length=128, default='nurse123') 
-    status = models.CharField(max_length=50, default='On Duty')
+    password = models.CharField(max_length=12) 
+    status = models.CharField(max_length=50)
     is_active = models.BooleanField(default=True)
     created_at = models.DateField(auto_now_add=True)
 
@@ -179,11 +179,11 @@ class Receptionist(models.Model):
     receptionist_id = models.CharField(max_length=50, unique=True, blank=True)
     role = models.CharField(max_length=100, choices=ROLE_CHOICES, default='Front Desk Receptionist')
     shift = models.CharField(max_length=100) 
-    languages = models.CharField(max_length=150, default='English, Hindi')
+    languages = models.CharField(max_length=150)
     contact = models.CharField(max_length=20)
     email = models.EmailField(unique=True)
-    password = models.CharField(max_length=128, default='rec123') 
-    status = models.CharField(max_length=50, default='Active')
+    password = models.CharField(max_length=128) 
+    status = models.CharField(max_length=50)
     is_active = models.BooleanField(default=True)
     created_at = models.DateField(auto_now_add=True)
 
@@ -222,6 +222,26 @@ class Patient(models.Model):
         ('Pending', 'Pending'),
         ('Failed', 'Failed'),
     ]
+    Blood_Group = [
+        ('A+', 'A+'),
+        ('A-', 'A-'),
+        ('B+', 'B+'),
+        ('B-', 'B-'),
+        ('O+', 'O+'),
+        ('O-', 'O-'),
+        ('AB+', 'AB+'),
+        ('AB-', 'AB-'),
+    ]
+
+
+    PAYMENT_METHOD = [
+        ('UPI', 'Upi'),
+        ('Credit Card', 'Credit Card'),
+        ('Net Banking', 'Net Banking'),
+        ('Cash', 'Cash'),
+    ]
+
+
 
     hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, related_name='patients', null=True, blank=True)
     doctor = models.ForeignKey(Doctor, on_delete=models.SET_NULL, related_name='patient_appointments', null=True, blank=True, help_text="Assigned automatically or by receptionist based on availability")
@@ -230,7 +250,7 @@ class Patient(models.Model):
     patient_id = models.CharField(max_length=50, unique=True, blank=True)
     
     age = models.IntegerField(null=True, blank=True)
-    gender = models.CharField(max_length=20, choices=GENDER_CHOICES, default='Male')
+    gender = models.CharField(max_length=20, choices=GENDER_CHOICES)
     address = models.TextField()
     contact = models.CharField(max_length=20)
     email = models.EmailField(blank=True, null=True)
@@ -239,39 +259,27 @@ class Patient(models.Model):
     applied_at = models.DateTimeField(auto_now_add=True)
     
     symptoms_diagnosis = models.TextField(help_text="Patient describes symptoms or illness", blank=True, null=True) 
+    Blood_Group = models.CharField(max_length=10,choices=Blood_Group,null=True,blank=True)
     attached_document = models.FileField(upload_to='patient_documents/', blank=True, null=True, help_text="Upload prescription, photo, or medical PDF report")
     
     consultation_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='Pending')
-    payment_method = models.CharField(max_length=50, blank=True, null=True, help_text="e.g., Cash, UPI, Credit Card")
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES)
+    payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD,blank=True, null=True)
     
-    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Pending') 
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES) 
     is_active = models.BooleanField(default=True)
 
-    def save(self, *args, **kwargs):
-        if not self.patient_id:
-            import random
-            random_digits = str(random.randint(10000, 99999))
-            self.patient_id = f"PAT-{random_digits}"
-            while Patient.objects.filter(patient_id=self.patient_id).exists():
-                random_digits = str(random.randint(10000, 99999))
-                self.patient_id = f"PAT-{random_digits}"
-                
-        super().save(*args, **kwargs)
+def save(self, *args, **kwargs):
+    if not self.patient_id:
+        last_patient = Patient.objects.order_by('-id').first()
+        if last_patient:
+            last_number = int(last_patient.patient_id.split('-')[1])
+            next_number = last_number + 1
+        else:
+            next_number = 1
+        self.patient_id = f"PAT-{next_number:04d}"
+    super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} ({self.patient_id}) - Paid: ₹{self.amount_paid}"
-
-
-    
-
-
-
-
-
-
-
-
-
-

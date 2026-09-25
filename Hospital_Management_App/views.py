@@ -16,16 +16,6 @@ class Loginviewset(viewsets.ModelViewSet):
     queryset = Login.objects.all()
     serializer_class = Loginserializer
 
-
-
-
-
-
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from django.contrib.auth.models import User
-from Super_Admin.models import HospitalAdmin, Doctor, Nurse, Receptionist
-
 @api_view(['POST'])
 def user_login(api_request):
     email = api_request.data.get('email')
@@ -34,10 +24,8 @@ def user_login(api_request):
     if not email or not password:
         return Response({"message": "Email and password are required."}, status=400)
 
-    # Get the active user model safely
     User = get_user_model()
 
-    # 1. Check in Custom User Model (Superuser / Admin)
     django_user = User.objects.filter(email=email).first()
     if not django_user:
         django_user = User.objects.filter(username=email).first()
@@ -55,28 +43,36 @@ def user_login(api_request):
                 }
             }, status=200)
 
-    # 2. Check in HospitalAdmin
     user = HospitalAdmin.objects.filter(email=email, password=password).first()
     role = "HOSPITAL_ADMIN" if user else None
 
-    # 3. Check in Doctor
     if not user:
         user = Doctor.objects.filter(email=email, password=password).first()
         role = "DOCTOR" if user else None
 
-    # 4. Check in Nurse
     if not user:
         user = Nurse.objects.filter(email=email, password=password).first()
         role = "NURSE" if user else None
 
-    # 5. Check in Receptionist
     if not user:
         user = Receptionist.objects.filter(email=email, password=password).first()
         role = "RECEPTIONIST" if user else None
 
     if user:
         if not getattr(user, 'is_active', True):
-            return Response({"message": "Account is deactivated. Contact Administrator."}, status=403)
+            if role == "HOSPITAL_ADMIN":
+                message = "Account is deactivated. Contact Super Admin."
+            else:
+                message = "Account is deactivated. Contact your Branch Administrator."
+
+
+            return Response(
+                {'message': message}
+            )
+
+
+
+
 
         return Response({
             "message": "Login successful",

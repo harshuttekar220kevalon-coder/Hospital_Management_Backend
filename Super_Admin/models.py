@@ -20,7 +20,7 @@ class Hospitals(models.Model):
     nicu_beds = models.IntegerField(default=0, blank=True)
     restroom_for_relatives = models.IntegerField(default=0)
     ambulances_count = models.IntegerField()
-    departments = models.TextField(blank=True, null=True, help_text="Enter departments separated by commas (e.g. Cardiology, Neurology, Orthopedics)")
+    departments = models.TextField(blank=True, null=True, help_text="You Can enter Multy Departments")
     is_active = models.BooleanField(default=True)
     created_at = models.DateField(auto_now_add=True)
 
@@ -50,7 +50,7 @@ class Hospitals(models.Model):
 
 
 class HospitalAdmin(models.Model):
-    hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE)
+    hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE,null=False,blank=False)
     name = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
     contact = models.CharField(max_length=20)
@@ -77,7 +77,7 @@ class HospitalAdmin(models.Model):
 
 
 class Doctor(models.Model):
-    hospitals = models.ManyToManyField(Hospitals, related_name='doctors', blank=True)
+    hospitals = models.ManyToManyField(Hospitals, related_name='doctors', blank=False, )
     name = models.CharField(max_length=100)
     doctor_id = models.CharField(max_length=50, unique=True, blank=True)
     specialization = models.TextField(help_text="Enter one or more specializations")
@@ -107,22 +107,10 @@ class Doctor(models.Model):
         return f"{self.name} - {self.doctor_id}"
 
 
-
-
-
-
-
-
-
-
 class Nurse(models.Model):
     ROLE_CHOICES = [
         ('Head Nurse', 'Head Nurse'),
         ('Staff Nurse', 'Staff Nurse'),
-        ('ICU Nurse', 'ICU Nurse'),
-        ('Emergency Nurse', 'Emergency Nurse'),
-        ('OT Nurse', 'OT Nurse'),
-        ('Ward Nurse', 'Ward Nurse'),
     ]
 
     WARD_CHOICES = [
@@ -137,8 +125,8 @@ class Nurse(models.Model):
     hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, related_name='nurses', null=True, blank=True)
     name = models.CharField(max_length=100)
     nurse_id = models.CharField(max_length=50, unique=True, blank=False)
-    role = models.CharField(max_length=100, choices=ROLE_CHOICES, default='Staff Nurse')
-    ward = models.CharField(max_length=100, choices=WARD_CHOICES, default='General Ward')
+    role = models.CharField(max_length=100, choices=ROLE_CHOICES)
+    ward = models.CharField(max_length=100, choices=WARD_CHOICES)
     shift = models.CharField(max_length=100)
     qualification = models.CharField(max_length=150, blank=True, null=True)
     experience = models.CharField(max_length=50, blank=True, null=True)
@@ -222,6 +210,7 @@ class Patient(models.Model):
         ('Pending', 'Pending'),
         ('Failed', 'Failed'),
     ]
+
     Blood_Group = [
         ('A+', 'A+'),
         ('A-', 'A-'),
@@ -233,7 +222,6 @@ class Patient(models.Model):
         ('AB-', 'AB-'),
     ]
 
-
     PAYMENT_METHOD = [
         ('UPI', 'Upi'),
         ('Credit Card', 'Credit Card'),
@@ -241,32 +229,25 @@ class Patient(models.Model):
         ('Cash', 'Cash'),
     ]
 
-
-
     hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, related_name='patients', null=True, blank=True)
     doctor = models.ForeignKey(Doctor, on_delete=models.SET_NULL, related_name='patient_appointments', null=True, blank=True, help_text="Assigned automatically or by receptionist based on availability")
-    
     name = models.CharField(max_length=100)
     patient_id = models.CharField(max_length=50, unique=True, blank=True)
-    
     age = models.IntegerField(null=True, blank=True)
     gender = models.CharField(max_length=20, choices=GENDER_CHOICES)
     address = models.TextField()
     contact = models.CharField(max_length=20)
     email = models.EmailField(blank=True, null=True)
-    
     visit_date_time = models.DateTimeField(null=True, blank=True) 
     applied_at = models.DateTimeField(auto_now_add=True)
-    
     symptoms_diagnosis = models.TextField(help_text="Patient describes symptoms or illness", blank=True, null=True) 
-    Blood_Group = models.CharField(max_length=10,choices=Blood_Group,null=True,blank=True)
+    Blood_Group = models.CharField(max_length=10, choices=Blood_Group, null=True,blank=True)
     attached_document = models.FileField(upload_to='patient_documents/', blank=True, null=True, help_text="Upload prescription, photo, or medical PDF report")
-    
+    Hospitals_Chargies = models.DecimalField(max_digits=15, default=0,decimal_places=2)
     consultation_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES)
     payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD,blank=True, null=True)
-    
     status = models.CharField(max_length=50, choices=STATUS_CHOICES) 
     is_active = models.BooleanField(default=True)
 

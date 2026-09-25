@@ -23,7 +23,7 @@ class Loginserializer(serializers.ModelSerializer):
     def validate_role(self, value):
         # Website/Frontend se koi bhi Admin ya Super Admin register nahi kar sakta
         if value in ['ADMIN', 'SUPER_ADMIN']:
-            raise serializers.ValidationError("Admins can only be created from the backend Django admin panel.")
+            raise serializers.ValidationError("Admins can only be created By Super Admin")
         return value
 
     def create(self, validated_data):

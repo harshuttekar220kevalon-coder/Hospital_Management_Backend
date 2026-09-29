@@ -229,6 +229,15 @@ class Patient(models.Model):
         ('Cash', 'Cash'),
     ]
 
+
+
+    Condition_Status = [
+        ('Critical','Critical'),
+        ('Emergency','Emergency'),
+        ('Urgent','Urgent'),
+        ('Normal','Normal')
+    ]
+
     hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, related_name='patients', null=True, blank=True)
     doctor = models.ForeignKey(Doctor, on_delete=models.SET_NULL, related_name='patient_appointments', null=True, blank=True, help_text="Assigned automatically or by receptionist based on availability")
     name = models.CharField(max_length=100)
@@ -250,6 +259,8 @@ class Patient(models.Model):
     payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD,blank=True, null=True)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES) 
     is_active = models.BooleanField(default=True)
+    Condation = models.CharField(choices=Condition_Status,null=True,blank=True,max_length=40)
+
 
 def save(self, *args, **kwargs):
     if not self.patient_id:

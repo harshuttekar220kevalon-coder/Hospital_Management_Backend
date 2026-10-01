@@ -26,7 +26,10 @@ admin.site.register(Receptionist)
 
 
 
-admin.site.register(Patient)
+
+@admin.register(Patient)
+class patientAdmin(admin.ModelAdmin):
+    readonly_fields = ('patient_id',)
 
 
 

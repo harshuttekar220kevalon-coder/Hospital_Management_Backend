@@ -1279,6 +1279,14 @@ Fetch ka result milne tak is async function ke next step ko wait karo.
 
 
 
+Interview 
+
+ForeignKey ko bolte hain "One-to-Many" (1 Hospital ke paas many Nurses).
+ManyToManyField ko bolte hain "Many-to-Many" (1 Doctor ke multiple Hospitals, aur 1 Hospital ke multiple Doctors).
+
+
+CORS
+CORS browser ka ek security guard hai. Jab Frontend (port 5173) aur Backend (port 8000) alag-alag domain ya port pe hote hain, toh browser bina backend ki permission ke data aane nahi deta. corsheaders Django ko bolta hai ki "Haan, React mere se data maang sakta hai, allow kar do!"
 
 
 
@@ -1309,11 +1317,6 @@ Fetch ka result milne tak is async function ke next step ko wait karo.
 
 
 
-
-
-
-
-v
 
 Login Flow (Complete Round-Trip)
 Login.jsx (React Page) =>

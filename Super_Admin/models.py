@@ -1,6 +1,6 @@
 from django.db import models
 import random
-
+from django.core.exceptions import ValidationError
 
 
 
@@ -14,6 +14,7 @@ class Hospitals(models.Model):
     emergency_contact = models.CharField(max_length=20, blank=True, null=True)
     email = models.EmailField(unique=True)
     established_year = models.CharField(max_length=10, blank=True, null=True)
+
     total_beds = models.IntegerField()
     icu_beds = models.IntegerField()
     operation_theatres = models.IntegerField()
@@ -122,6 +123,11 @@ class Nurse(models.Model):
         ('OPD', 'OPD'),
     ]
 
+    status_choise = [
+        ('On_Duty','On_Duty'),
+        ('Off_Duty','Off_Duty'),
+    ]
+
     hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, related_name='nurses', null=True, blank=True)
     name = models.CharField(max_length=100)
     nurse_id = models.CharField(max_length=50, unique=True, blank=False)
@@ -133,9 +139,12 @@ class Nurse(models.Model):
     contact = models.CharField(max_length=20)
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=12) 
-    status = models.CharField(max_length=50)
+    status = models.CharField(max_length=50,choices=status_choise)
     is_active = models.BooleanField(default=True)
     created_at = models.DateField(auto_now_add=True)
+    max_patient_capacity = models.IntegerField(default=50)
+    assigned_floor = models.IntegerField(blank=True,null=True)
+
 
     def save(self, *args, **kwargs):
         if not self.nurse_id:
@@ -260,18 +269,45 @@ class Patient(models.Model):
     status = models.CharField(max_length=50, choices=STATUS_CHOICES) 
     is_active = models.BooleanField(default=True)
     Condation = models.CharField(choices=Condition_Status,null=True,blank=True,max_length=40)
+    bed_number = models.IntegerField(null=True, blank=True)
 
 
-def save(self, *args, **kwargs):
-    if not self.patient_id:
-        last_patient = Patient.objects.order_by('-id').first()
-        if last_patient:
-            last_number = int(last_patient.patient_id.split('-')[1])
-            next_number = last_number + 1
-        else:
-            next_number = 1
-        self.patient_id = f"PAT-{next_number:04d}"
-    super().save(*args, **kwargs)
+    @property
+    def floor(self):
+        if not self.bed_number:
+            return "Not Assigned"
+
+        floor_number = ((self.bed_number - 1) // 100) + 1
+        return f"Floor {floor_number}"
+
+    def clean(self):
+        super().clean()
+        if self.status == 'Admitted' and self.bed_number:
+            existing_patient = Patient.objects.filter(
+                hospital=self.hospital,
+                bed_number=self.bed_number,
+                status='Admitted'
+            ).exclude(pk=self.pk).exists()
+
+            if existing_patient:
+                raise ValidationError(f"Bed No. {self.bed_number} is already occupied by another active patient!")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        
+        if not self.patient_id:
+            last_patient = Patient.objects.order_by('-id').first()
+            if last_patient and last_patient.patient_id:
+                try:
+                    last_number = int(last_patient.patient_id.split('-')[1])
+                    next_number = last_number + 1
+                except (ValueError, IndexError):
+                    next_number = 1
+            else:
+                next_number = 1
+            self.patient_id = f"PAT-{next_number:04d}"
+            
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.name} ({self.patient_id}) - Paid: ₹{self.amount_paid}"
+        return f"{self.name} ({self.patient_id})"

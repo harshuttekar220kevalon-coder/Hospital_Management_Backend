@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
-from Super_Admin.views import DoctorViewSet, HospitalAdminViewSet, Hospitalsviewset, NurseViewSet, PatientViewSet, ReceptionistViewSet
+from Super_Admin.views import  DoctorViewSet, HospitalAdminViewSet, Hospitalsviewset, NurseViewSet, PatientViewSet, ReceptionistViewSet
 
 
 router = DefaultRouter()

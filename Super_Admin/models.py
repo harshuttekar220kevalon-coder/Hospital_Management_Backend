@@ -3,9 +3,8 @@ import random
 from django.core.exceptions import ValidationError
 
 
-
 class Hospitals(models.Model):
-    Name = models.CharField(max_length=100)
+    Name = models.CharField(max_length=100, unique=True)
     Branch_Code = models.CharField(max_length=50, unique=True)
     city = models.CharField(max_length=50)
     area = models.CharField(max_length=50)
@@ -48,10 +47,8 @@ class Hospitals(models.Model):
 
 
 
-
-
 class HospitalAdmin(models.Model):
-    hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE,null=False,blank=False)
+    hospital = models.ForeignKey(Hospitals, to_field='Name', on_delete=models.CASCADE, null=False, blank=False) 
     name = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
     contact = models.CharField(max_length=20)
@@ -72,7 +69,6 @@ class HospitalAdmin(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.hospital.Name}"
-
 
 
 
@@ -311,3 +307,12 @@ class Patient(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.patient_id})"
+
+
+
+
+
+
+
+
+    

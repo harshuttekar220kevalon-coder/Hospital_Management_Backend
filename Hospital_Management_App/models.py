@@ -1,12 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-# Create your models here.
 
 
 
-
-
-class Login(AbstractUser):
+class Signup(AbstractUser):
     USER_CHOICES = [
         ('SUPER_ADMIN', 'Super Admin'),
         ('ADMIN', 'Admin'),

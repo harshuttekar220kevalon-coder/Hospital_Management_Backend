@@ -6,15 +6,9 @@ from Super_Admin.models import Doctor, HospitalAdmin, Hospitals, Nurse, Patient,
 from Super_Admin.serializers import DoctorSerializer, HospitalAdminserializer, Hospitalsserializer, NurseSerializer, PatientSerializer, ReceptionistSerializer
 
 
-
-
-
-
 class Hospitalsviewset(viewsets.ModelViewSet):
     queryset = Hospitals.objects.all()
     serializer_class = Hospitalsserializer
-
-
 
 
 class HospitalAdminViewSet(viewsets.ModelViewSet):
@@ -32,7 +26,7 @@ class HospitalAdminViewSet(viewsets.ModelViewSet):
             admin_user.save()
             return Response({"message": "Hospital Admin password reset successfully!"}, status=200)
         except HospitalAdmin.DoesNotExist:
-            return Response({"error": "Hospital Administrator with this email not found."}, status=404)
+            return Response({"error": "Hospital Admin with this email not found."}, status=404)
 
 
 

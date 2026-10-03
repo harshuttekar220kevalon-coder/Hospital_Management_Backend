@@ -1,9 +1,5 @@
 from django.contrib import admin
-
-from Super_Admin.models import Doctor, HospitalAdmin, Hospitals, Nurse, Patient, Receptionist
-
-# Register your models here.
-
+from Super_Admin.models import  Doctor, HospitalAdmin, Hospitals, Nurse, Patient, Receptionist
 
 
 @admin.register(Hospitals)
@@ -14,26 +10,20 @@ class HospitalsAdmin(admin.ModelAdmin):
 admin.site.register(HospitalAdmin)
 
 
-
 @admin.register(Nurse)
 class NurseAdmin(admin.ModelAdmin):
     earch_fields = ('name', 'nurse_id', 'email', 'contact')
     readonly_fields = ('nurse_id', 'created_at')
 
 
-
 admin.site.register(Receptionist)
-
-
-
 
 @admin.register(Patient)
 class patientAdmin(admin.ModelAdmin):
     readonly_fields = ('patient_id',)
 
-
-
 @admin.register(Doctor)
 class DoctorAdmin(admin.ModelAdmin):
     search_fields = ('name', 'email', 'specialization', 'doctor_id')
     readonly_fields = ('doctor_id', 'created_at')
+

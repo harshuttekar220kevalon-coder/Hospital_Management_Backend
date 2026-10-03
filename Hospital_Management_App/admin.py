@@ -1,13 +1,10 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from Hospital_Management_App.models import Login
-
-# Register your models here.
+from Hospital_Management_App.models import Signup
 
 
-
-class LoginAdmin(UserAdmin):
-    list_display = ['username', 'Select_User']
+class SignupAdmin(UserAdmin):
+    list_display = ['username', 'first_name', 'last_name', 'Select_User', 'is_active']
     
     fieldsets = UserAdmin.fieldsets + (
         ('Custom Fields', {'fields': ('Select_User',)}),
@@ -17,4 +14,4 @@ class LoginAdmin(UserAdmin):
         ('Custom Fields', {'fields': ('Select_User',)}),
     )
 
-admin.site.register(Login, LoginAdmin)
+admin.site.register(Signup, SignupAdmin)

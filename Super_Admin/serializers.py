@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from Super_Admin.models import Doctor, HospitalAdmin, Hospitals, Nurse, Patient, Receptionist
+from Super_Admin.models import Appointment, Doctor, HospitalAdmin, Hospitals, Nurse, Patient, Receptionist
 
 
 class Hospitalsserializer(serializers.ModelSerializer):
@@ -40,3 +40,10 @@ class PatientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Patient
         fields = '__all__'
+
+
+
+class AppointmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Appointment
+        fields ='__all__'

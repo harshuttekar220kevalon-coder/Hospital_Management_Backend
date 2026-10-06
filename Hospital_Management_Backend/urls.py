@@ -20,14 +20,13 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from Hospital_Management_App.views import user_login, user_signup
 
-
 router = DefaultRouter()
 
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/',include(router.urls)),
+    path('api/', include(router.urls)),
     path('api/signup/', user_signup, name='user_signup'),
     path('api/login/', user_login, name='user_login'),
     path('api/super-admin/', include('Super_Admin.urls')),

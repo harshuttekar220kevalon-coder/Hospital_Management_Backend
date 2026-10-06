@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from Hospital_Management_App.models import Signup
 
-
 class RegisterSerializer(serializers.ModelSerializer):
     firstName = serializers.CharField(write_only=True, source='first_name')
     lastName = serializers.CharField(write_only=True, source='last_name')
@@ -19,12 +18,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         return value
 
     def validate_role(self, value):
-        allowed_roles = ['DOCTOR', 'NURSES', 'RECEPTIONISTS', 'PATIENTS']
+        allowed_roles = ['DOCTOR', 'NURSES', 'RECEPTIONISTS', 'PATIENTS', 'ADMIN', 'SUPER_ADMIN']
         
         if value not in allowed_roles:
-            raise serializers.ValidationError(
-                "You cannot sign up as Admin or Super Admin. Only Doctors, Nurses, Receptionists, and Patients can sign up."
-            )
+            raise serializers.ValidationError("Invalid role selected.")
         return value
 
     def validate(self, data):
@@ -34,11 +31,8 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop('password')
-        email = validated_data.get('email')
         
-        user = Signup(**validated_data)
-        user.username = email  
-        user.set_password(password)
+        user = Signup(**validated_data, password=password)
         user.save()
         return user
 
@@ -46,4 +40,4 @@ class RegisterSerializer(serializers.ModelSerializer):
 # Login Serializer
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
-    password = serializers.CharField(write_only=True, required=True)
+    password = serializers.CharField(max_length=100, write_only=True, required=True)

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from Super_Admin.models import  Doctor, HospitalAdmin, Hospitals, Nurse, Patient, Receptionist
+from Super_Admin.models import  Appointment, Doctor, HospitalAdmin, Hospitals, Nurse, Patient, Receptionist
 
 
 @admin.register(Hospitals)
@@ -26,4 +26,4 @@ class patientAdmin(admin.ModelAdmin):
 class DoctorAdmin(admin.ModelAdmin):
     search_fields = ('name', 'email', 'specialization', 'doctor_id')
     readonly_fields = ('doctor_id', 'created_at')
-
+admin.site.register(Appointment)

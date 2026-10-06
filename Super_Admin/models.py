@@ -1,6 +1,6 @@
 from django.db import models
 import random
-from django.core.exceptions import ValidationError
+
 
 
 class Hospitals(models.Model):
@@ -13,7 +13,6 @@ class Hospitals(models.Model):
     emergency_contact = models.CharField(max_length=20, blank=True, null=True)
     email = models.EmailField(unique=True)
     established_year = models.CharField(max_length=10, blank=True, null=True)
-
     total_beds = models.IntegerField()
     icu_beds = models.IntegerField()
     operation_theatres = models.IntegerField()
@@ -48,7 +47,7 @@ class Hospitals(models.Model):
 
 
 class HospitalAdmin(models.Model):
-    hospital = models.ForeignKey(Hospitals, to_field='Name', on_delete=models.CASCADE, null=False, blank=False) 
+    hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, null=True, blank=True) 
     name = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
     contact = models.CharField(max_length=20)
@@ -80,10 +79,10 @@ class Doctor(models.Model):
     specialization = models.TextField(help_text="Enter one or more specializations")
     additional_skills = models.TextField(blank=True, null=True)
     department = models.TextField(blank=True, null=True, default=None)
-    qualification = models.CharField(max_length=150)
-    experience = models.CharField(max_length=50)
-    opd_timings = models.CharField(max_length=100)
-    phone = models.CharField(max_length=20)
+    qualification = models.CharField(max_length=150,blank=True, null=True)
+    experience = models.CharField(max_length=50,blank=True, null=True)
+    opd_timings = models.CharField(max_length=100,blank=True, null=True)
+    phone = models.CharField(max_length=20,blank=True, null=True)
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=128)
     status = models.CharField(max_length=50, default='Available')
@@ -193,14 +192,37 @@ class Receptionist(models.Model):
     def __str__(self):
         return f"{self.name} ({self.role})" 
 
-
 class Patient(models.Model):
-    GENDER_CHOICES = [
-        ('Male', 'Male'),
-        ('Female', 'Female'),
-        ('Other', 'Other'),
-    ]
 
+    name = models.CharField(max_length=100)
+    patient_id = models.CharField(max_length=50, unique=True, blank=True)
+    address = models.TextField(blank=True, null=True)
+    contact = models.CharField(max_length=20, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    password = models.CharField(max_length=128, blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        if not self.patient_id:
+            last_patient = Patient.objects.order_by('-id').first()
+            if last_patient and last_patient.patient_id:
+                try:
+                    last_number = int(last_patient.patient_id.split('-')[1])
+                    next_number = last_number + 1
+                except (ValueError, IndexError):
+                    next_number = 1
+            else:
+                next_number = 1
+            self.patient_id = f"PAT-{next_number:04d}"
+
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.name} ({self.patient_id})"
+
+
+
+class Appointment(models.Model):
     STATUS_CHOICES = [
         ('Pending', 'Pending'),
         ('Assigned', 'Assigned'),
@@ -216,15 +238,11 @@ class Patient(models.Model):
         ('Failed', 'Failed'),
     ]
 
-    Blood_Group = [
-        ('A+', 'A+'),
-        ('A-', 'A-'),
-        ('B+', 'B+'),
-        ('B-', 'B-'),
-        ('O+', 'O+'),
-        ('O-', 'O-'),
-        ('AB+', 'AB+'),
-        ('AB-', 'AB-'),
+    BLOOD_GROUP_CHOICES = [
+        ('A+', 'A+'), ('A-', 'A-'),
+        ('B+', 'B+'), ('B-', 'B-'),
+        ('O+', 'O+'), ('O-', 'O-'),
+        ('AB+', 'AB+'), ('AB-', 'AB-'),
     ]
 
     PAYMENT_METHOD = [
@@ -234,85 +252,45 @@ class Patient(models.Model):
         ('Cash', 'Cash'),
     ]
 
-
-
-    Condition_Status = [
-        ('Critical','Critical'),
-        ('Emergency','Emergency'),
-        ('Urgent','Urgent'),
-        ('Normal','Normal')
+    CONDITION_STATUS = [
+        ('Critical', 'Critical'),
+        ('Emergency', 'Emergency'),
+        ('Urgent', 'Urgent'),
+        ('Normal', 'Normal'),
     ]
 
-    hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, related_name='patients', null=True, blank=True)
-    doctor = models.ForeignKey(Doctor, on_delete=models.SET_NULL, related_name='patient_appointments', null=True, blank=True, help_text="Assigned automatically or by receptionist based on availability")
-    name = models.CharField(max_length=100)
-    patient_id = models.CharField(max_length=50, unique=True, blank=True)
-    age = models.IntegerField(null=True, blank=True)
-    gender = models.CharField(max_length=20, choices=GENDER_CHOICES)
-    address = models.TextField()
-    contact = models.CharField(max_length=20)
-    email = models.EmailField(blank=True, null=True)
+    # Patient ke sath relation
+    patient_Name= models.CharField(max_length=100)
+    hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, related_name='hospital_appointments', null=True, blank=True)
+    doctor = models.ForeignKey(Doctor, on_delete=models.SET_NULL, related_name='doctor_appointments', null=True, blank=True)
+    
     visit_date_time = models.DateTimeField(null=True, blank=True) 
     applied_at = models.DateTimeField(auto_now_add=True)
-    symptoms_diagnosis = models.TextField(help_text="Patient describes symptoms or illness", blank=True, null=True) 
-    Blood_Group = models.CharField(max_length=10, choices=Blood_Group, null=True,blank=True)
-    attached_document = models.FileField(upload_to='patient_documents/', blank=True, null=True, help_text="Upload prescription, photo, or medical PDF report")
-    Hospitals_Chargies = models.DecimalField(max_digits=15, default=0,decimal_places=2)
-    consultation_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    symptoms_diagnosis = models.TextField(blank=True, null=True) 
+    blood_group = models.CharField(max_length=10, choices=BLOOD_GROUP_CHOICES, null=True, blank=True)
+    attached_document = models.FileField(upload_to='appointment_documents/', blank=True, null=True)
+    
+    hospitals_charges = models.DecimalField(max_digits=15, default=0, decimal_places=2)
     amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES)
-    payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD,blank=True, null=True)
-    status = models.CharField(max_length=50, choices=STATUS_CHOICES) 
-    is_active = models.BooleanField(default=True)
-    Condation = models.CharField(choices=Condition_Status,null=True,blank=True,max_length=40)
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, blank=True, null=True)
+    payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD, blank=True, null=True)
+    
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, blank=True, null=True, default='Pending') 
+    condition = models.CharField(choices=CONDITION_STATUS, null=True, blank=True, max_length=40)
     bed_number = models.IntegerField(null=True, blank=True)
-
 
     @property
     def floor(self):
         if not self.bed_number:
             return "Not Assigned"
-
         floor_number = ((self.bed_number - 1) // 100) + 1
         return f"Floor {floor_number}"
 
-    def clean(self):
-        super().clean()
-        if self.status == 'Admitted' and self.bed_number:
-            existing_patient = Patient.objects.filter(
-                hospital=self.hospital,
-                bed_number=self.bed_number,
-                status='Admitted'
-            ).exclude(pk=self.pk).exists()
-
-            if existing_patient:
-                raise ValidationError(f"Bed No. {self.bed_number} is already occupied by another active patient!")
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        
-        if not self.patient_id:
-            last_patient = Patient.objects.order_by('-id').first()
-            if last_patient and last_patient.patient_id:
-                try:
-                    last_number = int(last_patient.patient_id.split('-')[1])
-                    next_number = last_number + 1
-                except (ValueError, IndexError):
-                    next_number = 1
-            else:
-                next_number = 1
-            self.patient_id = f"PAT-{next_number:04d}"
-            
-        super().save(*args, **kwargs)
-
     def __str__(self):
-        return f"{self.name} ({self.patient_id})"
+        return f"Appointment for {self.patient.name} at {self.hospital} - Status: {self.status}"
 
 
 
-
-
-
-
-
+# abhi resapnist page me un assine patients aarahe he lekin hame data change kar diya he ab appoiment ka data resapnist me jana cahi ye 
+# agr koi patient login karta he to vo jiski chae uski appoiment book kar shkta h elekin usme kuch fild empty reha ti he jese 
     

@@ -1,9 +1,11 @@
 from django.shortcuts import render
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework import status
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from Super_Admin.models import Doctor, HospitalAdmin, Hospitals, Nurse, Patient, Receptionist
-from Super_Admin.serializers import DoctorSerializer, HospitalAdminserializer, Hospitalsserializer, NurseSerializer, PatientSerializer, ReceptionistSerializer
+from Super_Admin.models import Appointment, Doctor, HospitalAdmin, Hospitals, Nurse, Patient, Receptionist
+from Super_Admin.serializers import AppointmentSerializer, DoctorSerializer, HospitalAdminserializer, Hospitalsserializer, NurseSerializer, PatientSerializer, ReceptionistSerializer
 
 
 class Hospitalsviewset(viewsets.ModelViewSet):
@@ -89,5 +91,34 @@ class ReceptionistViewSet(viewsets.ModelViewSet):
 
 
 class PatientViewSet(viewsets.ModelViewSet):
-    queryset = Patient.objects.all().order_by('-applied_at')
+    queryset = Patient.objects.all()
     serializer_class = PatientSerializer
+
+
+
+
+@api_view(['POST'])
+def create_appointment(request):
+    serializer = AppointmentSerializer(data=request.data)
+    if serializer.is_valid():
+        appointment = serializer.save()
+        return Response({
+            "message": "Appointment booked successfully!",
+            "appointment_id": appointment.id,
+            "data": serializer.data
+        }, status=status.HTTP_201_CREATED)
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def list_appointments(request):
+    # Optional filter by patient_id if passed in query params (?patient=1)
+    patient_id = request.GET.get('patient')
+    if patient_id:
+        appointments = Appointment.objects.filter(patient_id=patient_id)
+    else:
+        appointments = Appointment.objects.all()
+
+    serializer = AppointmentSerializer(appointments, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)

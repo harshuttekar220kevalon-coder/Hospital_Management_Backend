@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from Super_Admin.views import  DoctorViewSet, HospitalAdminViewSet, Hospitalsviewset, NurseViewSet, PatientViewSet, ReceptionistViewSet
+from Super_Admin.views import  AppointmentViewSet, DoctorViewSet, HospitalAdminViewSet, Hospitalsviewset, NurseViewSet, PatientViewSet, ReceptionistViewSet
 from Super_Admin import views
 
 router = DefaultRouter()
@@ -10,6 +10,7 @@ router.register(r'Doctors', DoctorViewSet)
 router.register(r'Nurses', NurseViewSet)
 router.register(r'Receptionists', ReceptionistViewSet)
 router.register(r'Patients', PatientViewSet)
+router.register(r'appointments', AppointmentViewSet)
 
 
 urlpatterns =[

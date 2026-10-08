@@ -96,6 +96,10 @@ class PatientViewSet(viewsets.ModelViewSet):
 
 
 
+class AppointmentViewSet(viewsets.ModelViewSet):
+    queryset = Appointment.objects.all().order_by('-id')
+    serializer_class = AppointmentSerializer
+
 
 @api_view(['POST'])
 def create_appointment(request):

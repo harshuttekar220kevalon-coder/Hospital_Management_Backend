@@ -1,6 +1,6 @@
 from django.db import models
 import random
-
+from django.core.exceptions import ValidationError
 
 
 class Hospitals(models.Model):
@@ -169,7 +169,7 @@ class Receptionist(models.Model):
     hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, related_name='receptionists', null=True, blank=True)
     name = models.CharField(max_length=100)
     receptionist_id = models.CharField(max_length=50, unique=True, blank=True)
-    role = models.CharField(max_length=100, choices=ROLE_CHOICES, default='Front Desk Receptionist')
+    role = models.CharField(max_length=100, choices=ROLE_CHOICES,blank=True,null=True)
     shift = models.CharField(max_length=100) 
     languages = models.CharField(max_length=150)
     contact = models.CharField(max_length=20)
@@ -222,6 +222,7 @@ class Patient(models.Model):
 
 
 
+
 class Appointment(models.Model):
     STATUS_CHOICES = [
         ('Pending', 'Pending'),
@@ -259,22 +260,37 @@ class Appointment(models.Model):
         ('Normal', 'Normal'),
     ]
 
-    # Patient ke sath relation
-    patient_Name= models.CharField(max_length=100)
+
+    checkup_status = [
+        ('Checkup Done','Checkup Done'),
+        ('Pending', 'Pending'),
+    ]
+
+    GENDER = [
+        ('Male', 'Male'),
+        ('Female', 'Female'),
+        ('Other', 'Other')
+    ]
+
+    Appoment_id = models.CharField(max_length=10, blank=True)
+    patient_Name = models.CharField(max_length=100)
     hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, related_name='hospital_appointments', null=True, blank=True)
-    doctor = models.ForeignKey(Doctor, on_delete=models.SET_NULL, related_name='doctor_appointments', null=True, blank=True)
-    
+    doctor = models.ForeignKey(Doctor, on_delete=models.SET_NULL, related_name='doctor_appointments', null=True, blank=True)   
     visit_date_time = models.DateTimeField(null=True, blank=True) 
     applied_at = models.DateTimeField(auto_now_add=True)
+    age = models.CharField(max_length=3, null=True, blank=True)
     symptoms_diagnosis = models.TextField(blank=True, null=True) 
     blood_group = models.CharField(max_length=10, choices=BLOOD_GROUP_CHOICES, null=True, blank=True)
     attached_document = models.FileField(upload_to='appointment_documents/', blank=True, null=True)
-    
+    contact = models.CharField(max_length=14, null=True, blank=True)
+    email = models.EmailField(null=True, blank=True)
+    Gender = models.CharField(null=True,blank=True,choices=GENDER)
+    address = models.TextField(null=True, blank=True)
+    checkup_status = models.CharField(blank=True,null=True,choices=checkup_status)
     hospitals_charges = models.DecimalField(max_digits=15, default=0, decimal_places=2)
     amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, blank=True, null=True)
-    payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD, blank=True, null=True)
-    
+    payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD, blank=True, null=True)   
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, blank=True, null=True, default='Pending') 
     condition = models.CharField(choices=CONDITION_STATUS, null=True, blank=True, max_length=40)
     bed_number = models.IntegerField(null=True, blank=True)
@@ -286,11 +302,34 @@ class Appointment(models.Model):
         floor_number = ((self.bed_number - 1) // 100) + 1
         return f"Floor {floor_number}"
 
+    def clean(self):
+        super().clean()
+        if not self.email:
+            raise ValidationError("Appointment book karne ke liye patient ka email dena anivarya hai!")
+        
+        if not Patient.objects.filter(email__iexact=self.email).exists():
+            raise ValidationError("Yeh email kisi registered patient ki nahi hai! Pehle patient ka signup hona zaroori hai.")
+
+        active_appointment = Appointment.objects.filter(
+            email__iexact=self.email, 
+            status__in=['Pending', 'Assigned', 'Admitted']
+        ).exclude(pk=self.pk).exists()
+
+        if active_appointment:
+            raise ValidationError("Is email ID par pehle se hi ek active appointment maujood hai!")
+
+        
+    def save(self, *args, **kwargs):
+        if not self.Appoment_id:
+            last_appointment = Appointment.objects.order_by('-id').first()
+            if last_appointment and last_appointment.Appoment_id and last_appointment.Appoment_id.isdigit():
+                next_id = int(last_appointment.Appoment_id) + 1
+            else:
+                next_id = 1
+            self.Appoment_id = str(next_id)
+        
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"Appointment for {self.patient.name} at {self.hospital} - Status: {self.status}"
-
-
-
-# abhi resapnist page me un assine patients aarahe he lekin hame data change kar diya he ab appoiment ka data resapnist me jana cahi ye 
-# agr koi patient login karta he to vo jiski chae uski appoiment book kar shkta h elekin usme kuch fild empty reha ti he jese 
-    
+        return f"{self.Appoment_id} - {self.patient_Name}"

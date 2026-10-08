@@ -47,3 +47,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appointment
         fields ='__all__'
+        extra_kwargs = {
+            'Appoment_id': {'read_only': True}
+        }

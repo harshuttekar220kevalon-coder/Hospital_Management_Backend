@@ -7,7 +7,11 @@ class HospitalsAdmin(admin.ModelAdmin):
     search_fields = ('Name', 'Branch_Code', 'city')
     readonly_fields =('Branch_Code','created_at')
 
-admin.site.register(HospitalAdmin)
+
+@admin.register(HospitalAdmin)
+class HospitalsAdmin(admin.ModelAdmin):
+    readonly_fields = ('employee_id','created_at')
+
 
 
 @admin.register(Nurse)
@@ -26,4 +30,9 @@ class patientAdmin(admin.ModelAdmin):
 class DoctorAdmin(admin.ModelAdmin):
     search_fields = ('name', 'email', 'specialization', 'doctor_id')
     readonly_fields = ('doctor_id', 'created_at')
-admin.site.register(Appointment)
+
+
+@admin.register(Appointment)
+class AppointmentAdmin(admin.ModelAdmin):
+    search_fields = ('patient_Name', 'email', 'condition')
+    readonly_fields = ('Appoment_id',)

@@ -73,6 +73,13 @@ class HospitalAdmin(models.Model):
 
 
 class Doctor(models.Model):
+
+
+    TYMING = [
+        ('Morning First Shift', 'Morning First Shift'),
+        ('Afternoon Second Shift', 'Afternoon Second Shift'),
+        ('Evening Third Shift', 'Evening Third Shift'),
+    ]
     hospitals = models.ManyToManyField(Hospitals, related_name='doctors', blank=False, )
     name = models.CharField(max_length=100)
     doctor_id = models.CharField(max_length=50, unique=True, blank=True)
@@ -81,7 +88,7 @@ class Doctor(models.Model):
     department = models.TextField(blank=True, null=True, default=None)
     qualification = models.CharField(max_length=150,blank=True, null=True)
     experience = models.CharField(max_length=50,blank=True, null=True)
-    opd_timings = models.CharField(max_length=100,blank=True, null=True)
+    Shifts = models.CharField(max_length=100,blank=True, null=True,choices=TYMING)
     phone = models.CharField(max_length=20,blank=True, null=True)
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=128)
@@ -123,12 +130,18 @@ class Nurse(models.Model):
         ('Off_Duty','Off_Duty'),
     ]
 
+    TYMING = [
+        ('Morning First Shift', 'Morning First Shift'),
+        ('Afternoon Second Shift', 'Afternoon Second Shift'),
+        ('Evening Third Shift', 'Evening Third Shift'),
+    ]
+
     hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, related_name='nurses', null=True, blank=True)
     name = models.CharField(max_length=100)
     nurse_id = models.CharField(max_length=50, unique=True, blank=False)
     role = models.CharField(max_length=100, choices=ROLE_CHOICES)
     ward = models.CharField(max_length=100, choices=WARD_CHOICES)
-    shift = models.CharField(max_length=100)
+    shift = models.CharField(max_length=100,blank=True,null=True,choices=TYMING)
     qualification = models.CharField(max_length=150, blank=True, null=True)
     experience = models.CharField(max_length=50, blank=True, null=True)
     contact = models.CharField(max_length=20)
@@ -165,12 +178,16 @@ class Receptionist(models.Model):
         ('Billing Receptionist', 'Billing Receptionist'),
         ('Emergency Receptionist', 'Emergency Receptionist'),
     ]
-
+    TYMING = [
+        ('Morning First Shift', 'Morning First Shift'),
+        ('Afternoon Second Shift', 'Afternoon Second Shift'),
+        ('Evening Third Shift', 'Evening Third Shift'),
+    ]
     hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, related_name='receptionists', null=True, blank=True)
     name = models.CharField(max_length=100)
     receptionist_id = models.CharField(max_length=50, unique=True, blank=True)
     role = models.CharField(max_length=100, choices=ROLE_CHOICES,blank=True,null=True)
-    shift = models.CharField(max_length=100) 
+    shift = models.CharField(max_length=100,blank=True,null=True,choices=TYMING) 
     languages = models.CharField(max_length=150)
     contact = models.CharField(max_length=20)
     email = models.EmailField(unique=True)
@@ -260,8 +277,7 @@ class Appointment(models.Model):
         ('Normal', 'Normal'),
     ]
 
-
-    checkup_status = [
+    checkup_status_choices = [
         ('Checkup Done','Checkup Done'),
         ('Pending', 'Pending'),
     ]
@@ -277,16 +293,16 @@ class Appointment(models.Model):
     hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, related_name='hospital_appointments', null=True, blank=True)
     doctor = models.ForeignKey(Doctor, on_delete=models.SET_NULL, related_name='doctor_appointments', null=True, blank=True)   
     visit_date_time = models.DateTimeField(null=True, blank=True) 
-    applied_at = models.DateTimeField(auto_now_add=True)
+    Applied_at = models.DateTimeField(blank=True,null=True)
     age = models.CharField(max_length=3, null=True, blank=True)
     symptoms_diagnosis = models.TextField(blank=True, null=True) 
     blood_group = models.CharField(max_length=10, choices=BLOOD_GROUP_CHOICES, null=True, blank=True)
     attached_document = models.FileField(upload_to='appointment_documents/', blank=True, null=True)
     contact = models.CharField(max_length=14, null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
-    Gender = models.CharField(null=True,blank=True,choices=GENDER)
+    Gender = models.CharField(null=True, blank=True, choices=GENDER)
     address = models.TextField(null=True, blank=True)
-    checkup_status = models.CharField(blank=True,null=True,choices=checkup_status)
+    checkup_status = models.CharField(max_length=50, blank=True, null=True, choices=checkup_status_choices)
     hospitals_charges = models.DecimalField(max_digits=15, default=0, decimal_places=2)
     amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, blank=True, null=True)
@@ -294,6 +310,7 @@ class Appointment(models.Model):
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, blank=True, null=True, default='Pending') 
     condition = models.CharField(choices=CONDITION_STATUS, null=True, blank=True, max_length=40)
     bed_number = models.IntegerField(null=True, blank=True)
+    Discharge_DateTime = models.DateTimeField(blank=True, null=True)
 
     @property
     def floor(self):
@@ -310,15 +327,6 @@ class Appointment(models.Model):
         if not Patient.objects.filter(email__iexact=self.email).exists():
             raise ValidationError("Yeh email kisi registered patient ki nahi hai! Pehle patient ka signup hona zaroori hai.")
 
-        active_appointment = Appointment.objects.filter(
-            email__iexact=self.email, 
-            status__in=['Pending', 'Assigned', 'Admitted']
-        ).exclude(pk=self.pk).exists()
-
-        if active_appointment:
-            raise ValidationError("Is email ID par pehle se hi ek active appointment maujood hai!")
-
-        
     def save(self, *args, **kwargs):
         if not self.Appoment_id:
             last_appointment = Appointment.objects.order_by('-id').first()

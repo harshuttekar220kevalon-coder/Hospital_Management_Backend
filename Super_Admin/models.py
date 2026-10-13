@@ -2,7 +2,6 @@ from django.db import models
 import random
 from django.core.exceptions import ValidationError
 
-
 class Hospitals(models.Model):
     Name = models.CharField(max_length=100, unique=True)
     Branch_Code = models.CharField(max_length=50, unique=True)
@@ -84,7 +83,6 @@ class Doctor(models.Model):
     name = models.CharField(max_length=100)
     doctor_id = models.CharField(max_length=50, unique=True, blank=True)
     specialization = models.TextField(help_text="Enter one or more specializations")
-    additional_skills = models.TextField(blank=True, null=True)
     department = models.TextField(blank=True, null=True, default=None)
     qualification = models.CharField(max_length=150,blank=True, null=True)
     experience = models.CharField(max_length=50,blank=True, null=True)
@@ -291,7 +289,8 @@ class Appointment(models.Model):
     Appoment_id = models.CharField(max_length=10, blank=True)
     patient_Name = models.CharField(max_length=100)
     hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, related_name='hospital_appointments', null=True, blank=True)
-    doctor = models.ForeignKey(Doctor, on_delete=models.SET_NULL, related_name='doctor_appointments', null=True, blank=True)   
+    doctor = models.ForeignKey(Doctor, on_delete=models.SET_NULL, related_name='doctor_appointments', null=True, blank=True)  
+    nurse = models.ForeignKey(Nurse,  on_delete=models.SET_NULL,  null=True, blank=True) 
     visit_date_time = models.DateTimeField(null=True, blank=True) 
     Applied_at = models.DateTimeField(blank=True,null=True)
     age = models.CharField(max_length=3, null=True, blank=True)

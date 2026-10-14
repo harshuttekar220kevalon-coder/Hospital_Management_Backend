@@ -1,43 +1,71 @@
+from django.apps import apps
 from rest_framework import serializers
-from Hospital_Management_App.models import Signup
+from .models import Appointment, Notification, Patient
 
-class RegisterSerializer(serializers.ModelSerializer):
-    firstName = serializers.CharField(write_only=True, source='first_name')
-    lastName = serializers.CharField(write_only=True, source='last_name')
-    role = serializers.CharField(write_only=True, source='Select_User')
-    confirm_password = serializers.CharField(write_only=True)  
-    
+
+class NotificationSerializerBase(serializers.ModelSerializer):
+    is_read = serializers.SerializerMethodField()
+    read_at = serializers.SerializerMethodField()
+
     class Meta:
-        model = Signup
-        fields = ['id', 'firstName', 'lastName', 'role', 'email', 'password', 'confirm_password']
-        extra_kwargs = {'password': {'write_only': True}}
+        fields = '__all__'
+        read_only_fields = ('id', 'created_at', 'updated_at')
 
-    def validate_email(self, value):
-        if Signup.objects.filter(email__iexact=value).exists():
-            raise serializers.ValidationError("This email is already registered. Please login instead.")
-        return value
+    def get_extra_kwargs(self):
+        extra_kwargs = super().get_extra_kwargs()
+        for field in getattr(self.Meta, 'read_only_fields', ('id', 'created_at', 'updated_at')):
+            extra_kwargs[field] = {**extra_kwargs.get(field, {}), 'read_only': True}
+        return extra_kwargs
 
-    def validate_role(self, value):
-        allowed_roles = ['DOCTOR', 'NURSES', 'RECEPTIONISTS', 'PATIENTS', 'ADMIN', 'SUPER_ADMIN']
-        
-        if value not in allowed_roles:
-            raise serializers.ValidationError("Invalid role selected.")
-        return value
+    def _recipient_email(self):
+        request = self.context.get('request')
+        if not request:
+            return ''
+        from .views import notification_identity
+        identity = notification_identity(request)
+        return identity['email'] if identity else ''
 
-    def validate(self, data):
-        if data.get('password') != data.pop('confirm_password', None):
-            raise serializers.ValidationError({"confirm_password": "Password and Confirm Password must be same."})
-        return data
+    def _receipt(self, obj):
+        email = self._recipient_email()
+        if not email:
+            return None
+        receipt_model = apps.get_model(self.Meta.model._meta.app_label, 'NotificationReceipt')
+        return receipt_model.objects.filter(notification=obj, recipient_email__iexact=email).first()
 
-    def create(self, validated_data):
-        password = validated_data.pop('password')
-        
-        user = Signup(**validated_data, password=password)
-        user.save()
-        return user
+    def get_is_read(self, obj):
+        email = self._recipient_email().lower()
+        if obj.sender_email and obj.sender_email.lower() == email and (obj.recipient_email or '').lower() != email:
+            return True
+        return self._receipt(obj) is not None
+
+    def get_read_at(self, obj):
+        receipt = self._receipt(obj)
+        return receipt.read_at if receipt else None
+
+    def validate(self, attrs):
+        email = attrs.get('recipient_email', getattr(self.instance, 'recipient_email', None))
+        role = attrs.get('recipient_role', getattr(self.instance, 'recipient_role', None))
+        if not email and not role:
+            raise serializers.ValidationError('Provide recipient_email, recipient_role, or both.')
+        return attrs
 
 
-# Login Serializer
-class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
-    password = serializers.CharField(max_length=100, write_only=True, required=True)
+class NotificationSerializer(NotificationSerializerBase):
+    class Meta:
+        model = Notification
+        fields = "__all__"
+
+
+class PatientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Patient
+        fields = "__all__"
+
+
+class AppointmentSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source='patient_Name', read_only=True)
+
+    class Meta:
+        model = Appointment
+        fields = '__all__'
+        extra_kwargs = {'Appoment_id': {'read_only': True}}

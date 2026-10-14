@@ -18,17 +18,41 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from Hospital_Management_App.views import user_login, user_signup
+from Hospital_Management_App.views import (
+    AppointmentViewSet,
+    NotificationViewSet as PatientNotificationViewSet,
+    PatientViewSet,
+    create_appointment,
+    list_appointments,
+    notification_recipients,
+    send_notification_message,
+    user_login,
+    user_reset_password,
+    user_signup,
+)
 
-router = DefaultRouter()
+patient_router = DefaultRouter()
+patient_router.register('notifications', PatientNotificationViewSet, basename='patient-notification')
+patient_router.register('', PatientViewSet, basename='patient')
 
-
+appointment_router = DefaultRouter()
+appointment_router.register('', AppointmentViewSet, basename='appointment')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include(router.urls)),
-    path('api/signup/', user_signup, name='user_signup'),
     path('api/login/', user_login, name='user_login'),
+    path('api/reset-password/', user_reset_password, name='user_reset_password'),
+    path('api/signup/', user_signup, name='user_signup'),
+    path('api/notifications/recipients/', notification_recipients, name='notification_recipients'),
+    path('api/notifications/send/', send_notification_message, name='send_notification_message'),
+    path('api/patients/', include(patient_router.urls)),
+    path('api/appointments/create/', create_appointment, name='create_appointment'),
+    path('api/appointments/list/', list_appointments, name='list_appointments'),
+    path('api/appointments/', include(appointment_router.urls)),
+    path('api/admins/', include('Admin.urls')),
+    path('api/doctors/', include('Doctor.urls')),
+    path('api/nurses/', include('Nurse.urls')),
+    path('api/receptionists/', include('Receptionist.urls')),
     path('api/super-admin/', include('Super_Admin.urls')),
 
 

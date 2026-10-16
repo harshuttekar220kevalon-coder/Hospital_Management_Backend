@@ -11,7 +11,7 @@ class HospitalAdmin(models.Model):
     email = models.EmailField(unique=True)
     contact = models.CharField(max_length=20)
     password = models.CharField(max_length=128)
-    designation = models.CharField(max_length=100, default='Hospital Administrator')
+    designation = models.CharField(max_length=100, blank=True, null=True, default='')
     employee_id = models.CharField(max_length=50, unique=True, blank=True)
     is_active = models.BooleanField(default=True)
     is_approved = models.BooleanField(default=False, db_index=True)
@@ -32,32 +32,75 @@ class HospitalAdmin(models.Model):
     def __str__(self):
         return f"{self.name} - {self.hospital.Name}"
 
-class Notification(models.Model):
-    CATEGORY_CHOICES = [(value, value.title()) for value in ("SYSTEM", "ACCOUNT", "APPOINTMENT", "BILLING", "GENERAL")]
-    recipient_email = models.EmailField(blank=True, null=True, db_index=True)
-    recipient_role = models.CharField(max_length=32, blank=True, null=True, db_index=True)
+class AdminNotification(models.Model):
     sender_email = models.EmailField(blank=True, null=True, db_index=True)
-    sender_name = models.CharField(max_length=100, blank=True)
-    sender_role = models.CharField(max_length=32, blank=True)
-    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default="GENERAL")
-    title = models.CharField(max_length=160)
+    sender_name = models.CharField(max_length=150, blank=True)
+    sender_role = models.CharField(max_length=50, blank=True, db_index=True)
+
+    recipient_email = models.EmailField(blank=True, null=True, db_index=True)
+    recipient_name = models.CharField(max_length=150, blank=True)
+    recipient_role = models.CharField(max_length=50, blank=True, null=True, db_index=True)
+
+    title = models.CharField(max_length=200)
     message = models.TextField()
-    message_id = models.UUIDField(default=uuid.uuid4, db_index=True, editable=False)
-    thread_id = models.UUIDField(default=uuid.uuid4, db_index=True)
-    reply_to = models.UUIDField(blank=True, null=True, db_index=True)
     is_important = models.BooleanField(default=False, db_index=True)
-    data = models.JSONField(default=dict, blank=True)
+
+    is_read = models.BooleanField(default=False, db_index=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-created_at", "-id"]
+        db_table = "Admin_adminnotification"
+
+    def __str__(self):
+        return f"{self.title} (From: {self.sender_email} -> To: {self.recipient_email})"
 
 
-class NotificationReceipt(models.Model):
-    notification = models.ForeignKey(Notification, on_delete=models.CASCADE, related_name="receipts")
+class AdminNotificationReceipt(models.Model):
+    notification = models.ForeignKey(AdminNotification, on_delete=models.CASCADE, related_name="receipts")
     recipient_email = models.EmailField(db_index=True)
     read_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
+        db_table = "Admin_adminnotificationreceipt"
         constraints = [models.UniqueConstraint(fields=("notification", "recipient_email"), name="uniq_admin_notification_receipt")]
+
+    def __str__(self):
+        return f"Receipt for {self.notification_id} by {self.recipient_email}"
+
+
+Notification = AdminNotification
+NotificationReceipt = AdminNotificationReceipt
+
+
+class AdminChat(models.Model):
+    sender_name = models.CharField(max_length=150)
+    sender_email = models.EmailField(db_index=True)
+    sender_role = models.CharField(max_length=50, db_index=True)
+
+    recipient_name = models.CharField(max_length=150, blank=True, default='')
+    recipient_email = models.CharField(max_length=254, db_index=True)
+    recipient_role = models.CharField(max_length=50, db_index=True)
+
+    message = models.TextField()
+    is_broadcast = models.BooleanField(default=False, db_index=True)
+
+    is_read = models.BooleanField(default=False, db_index=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, null=True, blank=True, related_name='admin_chats')
+    hospital_name = models.CharField(max_length=150, blank=True, default='')
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        db_table = "Admin_adminchat"
+
+    def __str__(self):
+        return f"[AdminChat] {self.sender_name} -> {self.recipient_name}: {self.message[:30]}"
+

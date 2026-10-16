@@ -118,32 +118,46 @@ class Appointment(models.Model):
         return f'{self.Appoment_id} - {self.patient_Name}'
 
 
-class Notification(models.Model):
-    CATEGORY_CHOICES = [(value, value.title()) for value in ("SYSTEM", "ACCOUNT", "APPOINTMENT", "BILLING", "GENERAL")]
-    recipient_email = models.EmailField(blank=True, null=True, db_index=True)
-    recipient_role = models.CharField(max_length=32, blank=True, null=True, db_index=True)
+class PatientNotification(models.Model):
     sender_email = models.EmailField(blank=True, null=True, db_index=True)
-    sender_name = models.CharField(max_length=100, blank=True)
-    sender_role = models.CharField(max_length=32, blank=True)
-    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default="GENERAL")
-    title = models.CharField(max_length=160)
+    sender_name = models.CharField(max_length=150, blank=True)
+    sender_role = models.CharField(max_length=50, blank=True, db_index=True)
+
+    recipient_email = models.EmailField(blank=True, null=True, db_index=True)
+    recipient_name = models.CharField(max_length=150, blank=True)
+    recipient_role = models.CharField(max_length=50, blank=True, null=True, db_index=True)
+
+    title = models.CharField(max_length=200)
     message = models.TextField()
-    message_id = models.UUIDField(default=uuid.uuid4, db_index=True, editable=False)
-    thread_id = models.UUIDField(default=uuid.uuid4, db_index=True)
-    reply_to = models.UUIDField(blank=True, null=True, db_index=True)
     is_important = models.BooleanField(default=False, db_index=True)
-    data = models.JSONField(default=dict, blank=True)
+
+    is_read = models.BooleanField(default=False, db_index=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-created_at", "-id"]
+        db_table = "Hospital_Management_App_patientnotification"
+
+    def __str__(self):
+        return f"{self.title} (From: {self.sender_email} -> To: {self.recipient_email})"
 
 
-class NotificationReceipt(models.Model):
-    notification = models.ForeignKey(Notification, on_delete=models.CASCADE, related_name="receipts")
+class PatientNotificationReceipt(models.Model):
+    notification = models.ForeignKey(PatientNotification, on_delete=models.CASCADE, related_name="receipts")
     recipient_email = models.EmailField(db_index=True)
     read_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
+        db_table = "Hospital_Management_App_patientnotificationreceipt"
         constraints = [models.UniqueConstraint(fields=("notification", "recipient_email"), name="uniq_patient_notification_receipt")]
+
+    def __str__(self):
+        return f"Receipt for {self.notification_id} by {self.recipient_email}"
+
+
+Notification = PatientNotification
+NotificationReceipt = PatientNotificationReceipt
+

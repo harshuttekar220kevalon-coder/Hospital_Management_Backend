@@ -14,9 +14,22 @@ from Hospital_Management_App.serializers import PatientSerializer
 from rest_framework import viewsets
 
 router = DefaultRouter()
-router.register(r'Hospital',Hospitalsviewset)
+router.register(r'Hospital', Hospitalsviewset, basename='super-admin-hospital')
+router.register(r'hospital', Hospitalsviewset, basename='super-admin-hospital-lower')
+router.register(r'hospitals', Hospitalsviewset, basename='super-admin-hospitals')
 router.register(r'notifications', NotificationViewSet, basename='super-admin-notification')
 router.register(r'Admins', HospitalAdminViewSet, basename='super-admin-admin')
+
+hospital_list = Hospitalsviewset.as_view({
+    'get': 'list',
+    'post': 'create'
+})
+hospital_detail = Hospitalsviewset.as_view({
+    'get': 'retrieve',
+    'put': 'update',
+    'patch': 'partial_update',
+    'delete': 'destroy'
+})
 
 class DoctorViewSet(viewsets.ModelViewSet):
     queryset = Doctor.objects.all()
@@ -41,6 +54,19 @@ router.register(r'Patients', PatientViewSet, basename='super-admin-patient')
 router.register(r'appointments', AppointmentViewSet, basename='super-admin-appointment')
 
 
-urlpatterns =[
-    path('',include(router.urls)),
+urlpatterns = [
+    path('Hospital', hospital_list, name='super-admin-hospital-list-noslash'),
+    path('Hospital/', hospital_list, name='super-admin-hospital-list'),
+    path('Hospital/<int:pk>', hospital_detail, name='super-admin-hospital-detail-noslash'),
+    path('Hospital/<int:pk>/', hospital_detail, name='super-admin-hospital-detail'),
+    path('hospital', hospital_list, name='super-admin-hospital-lower-list-noslash'),
+    path('hospital/', hospital_list, name='super-admin-hospital-lower-list'),
+    path('hospital/<int:pk>', hospital_detail, name='super-admin-hospital-lower-detail-noslash'),
+    path('hospital/<int:pk>/', hospital_detail, name='super-admin-hospital-lower-detail'),
+    path('hospitals', hospital_list, name='super-admin-hospitals-list-noslash'),
+    path('hospitals/', hospital_list, name='super-admin-hospitals-list'),
+    path('hospitals/<int:pk>', hospital_detail, name='super-admin-hospitals-detail-noslash'),
+    path('hospitals/<int:pk>/', hospital_detail, name='super-admin-hospitals-detail'),
+    path('', include(router.urls)),
 ]
+

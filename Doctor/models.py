@@ -18,7 +18,7 @@ class Doctor(models.Model):
     hospitals = models.ManyToManyField(Hospitals, related_name='doctors', blank=False, )
     name = models.CharField(max_length=100)
     doctor_id = models.CharField(max_length=50, unique=True, blank=True)
-    specialization = models.TextField(help_text="Enter one or more specializations")
+    specialization = models.TextField(help_text="Enter one or more specializations", blank=True, null=True, default='')
     department = models.TextField(blank=True, null=True, default=None)
     qualification = models.CharField(max_length=150,blank=True, null=True)
     experience = models.CharField(max_length=50,blank=True, null=True)
@@ -26,11 +26,11 @@ class Doctor(models.Model):
     phone = models.CharField(max_length=20,blank=True, null=True)
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=128)
-    status = models.CharField(max_length=50, default='Available')
+    status = models.CharField(max_length=50, blank=True, null=True, default='')
     is_active = models.BooleanField(default=True)
     is_approved = models.BooleanField(default=False, db_index=True)
     created_at = models.DateField(auto_now_add=True)
-    consultation_fee = models.DecimalField(max_digits=10,decimal_places=2,default=0)
+    consultation_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0, blank=True, null=True)
     def save(self, *args, **kwargs):
         if not self.doctor_id:
             import random
@@ -45,32 +45,75 @@ class Doctor(models.Model):
         return f"{self.name} - {self.doctor_id}"
 
 
-class Notification(models.Model):
-    CATEGORY_CHOICES = [(value, value.title()) for value in ("SYSTEM", "ACCOUNT", "APPOINTMENT", "BILLING", "GENERAL")]
-    recipient_email = models.EmailField(blank=True, null=True, db_index=True)
-    recipient_role = models.CharField(max_length=32, blank=True, null=True, db_index=True)
+class DoctorNotification(models.Model):
     sender_email = models.EmailField(blank=True, null=True, db_index=True)
-    sender_name = models.CharField(max_length=100, blank=True)
-    sender_role = models.CharField(max_length=32, blank=True)
-    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default="GENERAL")
-    title = models.CharField(max_length=160)
+    sender_name = models.CharField(max_length=150, blank=True)
+    sender_role = models.CharField(max_length=50, blank=True, db_index=True)
+
+    recipient_email = models.EmailField(blank=True, null=True, db_index=True)
+    recipient_name = models.CharField(max_length=150, blank=True)
+    recipient_role = models.CharField(max_length=50, blank=True, null=True, db_index=True)
+
+    title = models.CharField(max_length=200)
     message = models.TextField()
-    message_id = models.UUIDField(default=uuid.uuid4, db_index=True, editable=False)
-    thread_id = models.UUIDField(default=uuid.uuid4, db_index=True)
-    reply_to = models.UUIDField(blank=True, null=True, db_index=True)
     is_important = models.BooleanField(default=False, db_index=True)
-    data = models.JSONField(default=dict, blank=True)
+
+    is_read = models.BooleanField(default=False, db_index=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-created_at", "-id"]
+        db_table = "Doctor_doctornotification"
+
+    def __str__(self):
+        return f"{self.title} (From: {self.sender_email} -> To: {self.recipient_email})"
 
 
-class NotificationReceipt(models.Model):
-    notification = models.ForeignKey(Notification, on_delete=models.CASCADE, related_name="receipts")
+class DoctorNotificationReceipt(models.Model):
+    notification = models.ForeignKey(DoctorNotification, on_delete=models.CASCADE, related_name="receipts")
     recipient_email = models.EmailField(db_index=True)
     read_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
+        db_table = "Doctor_doctornotificationreceipt"
         constraints = [models.UniqueConstraint(fields=("notification", "recipient_email"), name="uniq_doctor_notification_receipt")]
+
+    def __str__(self):
+        return f"Receipt for {self.notification_id} by {self.recipient_email}"
+
+
+Notification = DoctorNotification
+NotificationReceipt = DoctorNotificationReceipt
+
+
+class DoctorChat(models.Model):
+    sender_name = models.CharField(max_length=150)
+    sender_email = models.EmailField(db_index=True)
+    sender_role = models.CharField(max_length=50, db_index=True)
+
+    recipient_name = models.CharField(max_length=150, blank=True, default='')
+    recipient_email = models.CharField(max_length=254, db_index=True)
+    recipient_role = models.CharField(max_length=50, db_index=True)
+
+    message = models.TextField()
+    is_broadcast = models.BooleanField(default=False, db_index=True)
+
+    is_read = models.BooleanField(default=False, db_index=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, null=True, blank=True, related_name='doctor_chats')
+    hospital_name = models.CharField(max_length=150, blank=True, default='')
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        db_table = "Doctor_doctorchat"
+
+    def __str__(self):
+        return f"[DoctorChat] {self.sender_name} -> {self.recipient_name}: {self.message[:30]}"
+

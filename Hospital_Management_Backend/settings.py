@@ -179,7 +179,7 @@ REST_FRAMEWORK = {
 
 DATABASES = {
     'default': dj_database_url.config(
-        default='postgresql://hoapital_db_user:QmFgzpBpiRL834E2tKxs77slOe4YnfCX@dpg-dbaqtvnbtjjs7388i5n0-a/hoapital_db',
+        default='sqlite:///db.sqlite3',
         conn_max_age=600
     )
 }

@@ -10,6 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+
+import dj_database_url
 from pathlib import Path
 from corsheaders.defaults import default_headers
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -169,4 +171,15 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
+}
+
+
+
+
+
+DATABASES = {
+    'default': dj_database_url.config(
+        default='postgresql://hoapital_db_user:QmFgzpBpiRL834E2tKxs77slOe4YnfCX@dpg-dbaqtvnbtjjs7388i5n0-a/hoapital_db',
+        conn_max_age=600
+    )
 }

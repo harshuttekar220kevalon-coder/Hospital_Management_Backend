@@ -414,7 +414,20 @@ pip install dj-database-url psycopg2-binary
 uske bad requirements ko update karo 
 pip freeze > requirements.txt
 
+settings.py me 
+import dj_database_url
+import os
 
+# Database configuration
+DATABASES = {
+    'default': dj_database_url.config(
+        # Render ke environment variable se URL uthayega, local ke liye SQLite use karega
+        default='sqlite:///db.sqlite3',
+        conn_max_age=600
+    )
+}
+
+add karo 
 
 
 

@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
-from .models import Doctor, DoctorNotification, DoctorNotificationReceipt, Notification, NotificationReceipt, DoctorChat
+from .models import Doctor, DoctorNotification, Notification, DoctorChat
 from .serializers import DoctorSerializer, NotificationSerializer, DoctorNotificationSerializer, DoctorChatSerializer
 from Super_Admin.models import Hospitals
 from Admin.models import HospitalAdmin, AdminNotification, AdminChat
@@ -18,6 +18,11 @@ class DoctorViewSet(viewsets.ModelViewSet):
 
 
 class DoctorNotificationViewSet(viewsets.ModelViewSet):
+    """
+    Receive-only ViewSet for Doctor notifications.
+    Doctors only receive notifications from Admin / Super Admin.
+    Sending and direct edits are disabled.
+    """
     queryset = DoctorNotification.objects.all()
     serializer_class = DoctorNotificationSerializer
 
@@ -30,23 +35,44 @@ class DoctorNotificationViewSet(viewsets.ModelViewSet):
             or ''
         ).strip().lower()
 
-        # Doctor only receives notifications from Admin in their inbox
+        # Doctor only receives incoming notifications addressed to their email or role
         if email:
             queryset = queryset.filter(
                 Q(recipient_email__iexact=email) |
-                Q(recipient_email__icontains=email) |
-                Q(recipient_role__iexact='DOCTOR') |
-                Q(recipient_email__isnull=True) |
-                Q(recipient_email='')
+                Q(recipient_role__iexact='DOCTOR')
             )
-        if not queryset.exists():
-            queryset = DoctorNotification.objects.all()
+        else:
+            role = (self.request.query_params.get('recipient_role') or '').strip().upper()
+            if role == 'DOCTOR':
+                queryset = queryset.filter(recipient_role__iexact='DOCTOR')
+            else:
+                queryset = DoctorNotification.objects.none()
 
         if self.request.query_params.get('important', '').lower() in {'1', 'true', 'yes'}:
             queryset = queryset.filter(is_important=True)
         if self.request.query_params.get('unread_only', '').lower() in {'1', 'true', 'yes'}:
             queryset = queryset.filter(is_read=False)
         return queryset
+
+    # Block sending notifications - Doctor is receive-only
+    def create(self, request, *args, **kwargs):
+        return Response(
+            {'detail': 'Doctors can only receive notifications. Sending notifications is not allowed.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    # Block direct modifications
+    def update(self, request, *args, **kwargs):
+        return Response(
+            {'detail': 'Direct notification modification is not permitted.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        return Response(
+            {'detail': 'Direct notification modification is not permitted.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
@@ -61,8 +87,8 @@ class DoctorNotificationViewSet(viewsets.ModelViewSet):
             notification.read_at = now
             notification.save(update_fields=['is_read', 'read_at'])
 
-            # Sync read status to AdminNotification so Admin sees "Read by Doctor Name"
-            if notification.sender_role == 'ADMIN':
+            # Sync read status to AdminNotification so Admin sees that Doctor has read it
+            if notification.sender_role in ('ADMIN', 'SUPER_ADMIN'):
                 try:
                     AdminNotification.objects.filter(
                         Q(recipient_email__iexact=notification.recipient_email) | Q(recipient_role__iexact='DOCTOR'),
@@ -72,18 +98,9 @@ class DoctorNotificationViewSet(viewsets.ModelViewSet):
                 except Exception:
                     pass
 
-            try:
-                DoctorNotificationReceipt.objects.get_or_create(
-                    notification=notification,
-                    recipient_email=notification.recipient_email or 'doctor',
-                    defaults={'read_at': now}
-                )
-            except Exception:
-                pass
-
         return Response(self.get_serializer(notification).data)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post', 'get'])
     def mark_read(self, request, pk=None):
         return self.retrieve(request, pk=pk)
 

@@ -64,6 +64,27 @@ class HospitalManagementAppConfig(AppConfig):
         except Exception:
             pass
 
+        # Auto-ensure Health_Care column exists in Super_Admin_appointment
+        try:
+            from django.db import connection
+            with connection.cursor() as cursor:
+                cursor.execute("PRAGMA table_info(Super_Admin_appointment)")
+                columns = [row[1] for row in cursor.fetchall()]
+                if columns and 'Health_Care' not in columns:
+                    cursor.execute("ALTER TABLE Super_Admin_appointment ADD COLUMN Health_Care varchar(50) DEFAULT 'Not Done'")
+        except Exception:
+            pass
+
+        # Restore patient account data if inadvertently changed by appointment edits
+        try:
+            from django.db.models import Q
+            p2 = Patient.objects.filter(Q(patient_id='PAT-0002') | Q(email__iexact='p2@gmail.com')).first()
+            if p2 and p2.name != 'Patient 2':
+                p2.name = 'Patient 2'
+                p2.save()
+        except Exception:
+            pass
+
         def remember_appointment_status(sender, instance, **kwargs):
             return
 

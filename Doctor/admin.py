@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Doctor, DoctorNotification, DoctorNotificationReceipt, DoctorChat
+from .models import Doctor, DoctorNotification, DoctorChat
 
 
 @admin.register(Doctor)
@@ -14,12 +14,6 @@ class DoctorNotificationAdmin(admin.ModelAdmin):
     list_filter = ("is_important", "is_read", "sender_role", "recipient_role")
     search_fields = ("title", "message", "sender_name", "sender_email", "recipient_name", "recipient_email")
     readonly_fields = ("created_at", "updated_at", "read_at")
-
-
-@admin.register(DoctorNotificationReceipt)
-class DoctorNotificationReceiptAdmin(admin.ModelAdmin):
-    list_display = ("notification", "recipient_email", "read_at")
-    search_fields = ("recipient_email", "notification__title")
 
 
 @admin.register(DoctorChat)

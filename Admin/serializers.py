@@ -13,6 +13,14 @@ class HospitalAdminSerializer(serializers.ModelSerializer):
             'employee_id': {'required': False, 'allow_blank': True},
         }
 
+    def to_internal_value(self, data):
+        data = data.copy() if hasattr(data, 'copy') else dict(data)
+        if 'phone' in data and ('contact' not in data or not data['contact']):
+            data['contact'] = data['phone']
+        if 'hospital' in data and isinstance(data['hospital'], dict) and 'id' in data['hospital']:
+            data['hospital'] = data['hospital']['id']
+        return super().to_internal_value(data)
+
     def validate_contact(self, value):
         import re
         clean = re.sub(r'\D', '', str(value or ''))

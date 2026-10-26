@@ -12,7 +12,7 @@ class HospitalAdminAdmin(admin.ModelAdmin):
 class AdminNotificationAdmin(admin.ModelAdmin):
     list_display = ("title", "sender_name", "sender_role", "recipient_name", "recipient_email", "recipient_role", "is_important", "is_read", "read_at", "created_at")
     list_filter = ("is_important", "is_read", "sender_role", "recipient_role")
-    search_fields = ("title", "message", "sender_name", "sender_email", "recipient_name", "recipient_email")
+    search_fields = ("title", "sender_name", "sender_email", "recipient_name", "recipient_email")
     readonly_fields = ("created_at", "updated_at", "read_at")
 
 
@@ -26,5 +26,5 @@ class AdminNotificationReceiptAdmin(admin.ModelAdmin):
 class AdminChatAdmin(admin.ModelAdmin):
     list_display = ("id", "sender_name", "sender_email", "sender_role", "recipient_name", "recipient_email", "recipient_role", "is_broadcast", "is_read", "hospital", "created_at")
     list_filter = ("is_broadcast", "is_read", "sender_role", "recipient_role", "hospital")
-    search_fields = ("sender_name", "sender_email", "recipient_name", "recipient_email", "message")
+    search_fields = ("sender_name", "sender_email", "recipient_name", "recipient_email",)
     readonly_fields = ("created_at", "updated_at", "read_at")

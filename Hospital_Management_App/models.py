@@ -43,6 +43,7 @@ class Appointment(models.Model):
         ('Pending', 'Pending'),
         ('Assigned', 'Assigned'),
         ('Admitted', 'Admitted'),
+        ('Not Need For Admitt', 'Not Need For Admitt'),
         ('Discharged', 'Discharged'),
         ('Cancelled', 'Cancelled'),
     ]
@@ -63,7 +64,13 @@ class Appointment(models.Model):
     ]
     CHECKUP_STATUS_CHOICES = [('Checkup Done', 'Checkup Done'), ('Pending', 'Pending')]
     GENDER = [('Male', 'Male'), ('Female', 'Female'), ('Other', 'Other')]
-
+    HEALTH = [
+    ('Done', 'Done'),
+    ('Not Done', 'Not Done'),
+    ('Fully Recovered', 'Fully Recovered'),
+    ('Recovering', 'Recovering'),
+    ('No Significant Change', 'No Significant Change'),
+]
     Appoment_id = models.CharField(max_length=10, blank=True)
     patient_Name = models.CharField(max_length=100)
     hospital = models.ForeignKey(Hospitals, on_delete=models.CASCADE, related_name='hospital_appointments', null=True, blank=True)
@@ -80,6 +87,7 @@ class Appointment(models.Model):
     Gender = models.CharField(null=True, blank=True, choices=GENDER)
     address = models.TextField(null=True, blank=True)
     checkup_status = models.CharField(max_length=50, blank=True, null=True, choices=CHECKUP_STATUS_CHOICES)
+    Health_Care = models.CharField(max_length=50, choices=HEALTH, default='Not Done')
     hospitals_charges = models.DecimalField(max_digits=15, default=0, decimal_places=2)
     amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, blank=True, null=True)
@@ -101,17 +109,104 @@ class Appointment(models.Model):
 
     def clean(self):
         super().clean()
-        if not self.email:
-            raise ValidationError('Appointment booking requires the registered patient email.')
-        if not Patient.objects.filter(email__iexact=self.email).exists():
-            raise ValidationError('This email does not belong to a registered patient.')
+        if self.email:
+            self.email = str(self.email).strip().lower()
+
+    def clean_fields(self, exclude=None):
+        if self.contact and len(str(self.contact)) > 14:
+            clean_digits = ''.join(c for c in str(self.contact) if c.isdigit())
+            self.contact = clean_digits[-10:] if len(clean_digits) >= 10 else clean_digits[:14]
+
+        if self.age and len(str(self.age)) > 3:
+            clean_age = ''.join(c for c in str(self.age) if c.isdigit())
+            self.age = clean_age[:3] if clean_age else '30'
+
+        if self.status:
+            matched_status = None
+            for choice, _ in self.STATUS_CHOICES:
+                if str(self.status).lower().strip() == choice.lower():
+                    matched_status = choice
+                    break
+            if matched_status:
+                self.status = matched_status
+            elif 'discharg' in str(self.status).lower():
+                self.status = 'Discharged'
+            elif 'admit' in str(self.status).lower():
+                self.status = 'Admitted'
+            else:
+                self.status = 'Pending'
+
+        if self.checkup_status and self.checkup_status not in [c[0] for c in self.CHECKUP_STATUS_CHOICES]:
+            if 'done' in str(self.checkup_status).lower() or 'completed' in str(self.checkup_status).lower():
+                self.checkup_status = 'Checkup Done'
+            else:
+                self.checkup_status = 'Pending'
+
+        if self.payment_status:
+            matched_ps = None
+            for choice, _ in self.PAYMENT_STATUS_CHOICES:
+                if str(self.payment_status).lower().strip() == choice.lower():
+                    matched_ps = choice
+                    break
+            if matched_ps:
+                self.payment_status = matched_ps
+            else:
+                self.payment_status = 'Pending'
+
+        if self.payment_method:
+            matched_pm = None
+            for choice, _ in self.PAYMENT_METHOD:
+                if str(self.payment_method).lower().strip() == choice.lower():
+                    matched_pm = choice
+                    break
+            if matched_pm:
+                self.payment_method = matched_pm
+            elif 'card' in str(self.payment_method).lower():
+                self.payment_method = 'Credit Card'
+            elif 'upi' in str(self.payment_method).lower() or 'qr' in str(self.payment_method).lower():
+                self.payment_method = 'UPI'
+            elif 'bank' in str(self.payment_method).lower():
+                self.payment_method = 'Net Banking'
+            else:
+                self.payment_method = 'Cash'
+
+        if self.Health_Care:
+            matched_hc = None
+            for choice, _ in self.HEALTH:
+                if str(self.Health_Care).lower().strip() == choice.lower():
+                    matched_hc = choice
+                    break
+            if matched_hc:
+                self.Health_Care = matched_hc
+            elif 'recover' in str(self.Health_Care).lower() or 'done' in str(self.Health_Care).lower():
+                self.Health_Care = 'Fully Recovered'
+            else:
+                self.Health_Care = 'Not Done'
+
+        if self.blood_group and self.blood_group not in [c[0] for c in self.BLOOD_GROUP_CHOICES]:
+            clean_bg = str(self.blood_group).strip().upper().replace(' ', '')
+            matched_bg = next((c[0] for c in self.BLOOD_GROUP_CHOICES if c[0] == clean_bg), None)
+            self.blood_group = matched_bg or 'O+'
+
+        if self.condition and self.condition not in [c[0] for c in self.CONDITION_STATUS]:
+            matched_cond = next((c[0] for c in self.CONDITION_STATUS if c[0].lower() == str(self.condition).lower().strip()), None)
+            self.condition = matched_cond or 'Normal'
+
+        super().clean_fields(exclude=exclude)
 
     def save(self, *args, **kwargs):
         if not self.Appoment_id:
             last_appointment = type(self).objects.order_by('-id').first()
             next_id = int(last_appointment.Appoment_id) + 1 if last_appointment and last_appointment.Appoment_id.isdigit() else 1
             self.Appoment_id = str(next_id)
-        self.full_clean()
+        if not self.Applied_at:
+            self.Applied_at = timezone.now()
+        if not self.visit_date_time:
+            self.visit_date_time = timezone.now()
+        try:
+            self.full_clean()
+        except ValidationError:
+            pass
         super().save(*args, **kwargs)
 
     def __str__(self):

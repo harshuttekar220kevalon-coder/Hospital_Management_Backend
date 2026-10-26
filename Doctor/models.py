@@ -72,21 +72,7 @@ class DoctorNotification(models.Model):
         return f"{self.title} (From: {self.sender_email} -> To: {self.recipient_email})"
 
 
-class DoctorNotificationReceipt(models.Model):
-    notification = models.ForeignKey(DoctorNotification, on_delete=models.CASCADE, related_name="receipts")
-    recipient_email = models.EmailField(db_index=True)
-    read_at = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        db_table = "Doctor_doctornotificationreceipt"
-        constraints = [models.UniqueConstraint(fields=("notification", "recipient_email"), name="uniq_doctor_notification_receipt")]
-
-    def __str__(self):
-        return f"Receipt for {self.notification_id} by {self.recipient_email}"
-
-
 Notification = DoctorNotification
-NotificationReceipt = DoctorNotificationReceipt
 
 
 class DoctorChat(models.Model):

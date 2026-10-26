@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from .models import Nurse, NurseNotification, Notification, NurseChat
-from Hospital_Management_App.serializers import NotificationSerializerBase
 
 
 class NurseSerializer(serializers.ModelSerializer):
@@ -20,6 +19,14 @@ class NurseSerializer(serializers.ModelSerializer):
             'assigned_floor': {'required': False, 'allow_null': True},
         }
 
+    def to_internal_value(self, data):
+        data = data.copy() if hasattr(data, 'copy') else dict(data)
+        if 'phone' in data and ('contact' not in data or not data['contact']):
+            data['contact'] = data['phone']
+        if 'hospital' in data and isinstance(data['hospital'], dict) and 'id' in data['hospital']:
+            data['hospital'] = data['hospital']['id']
+        return super().to_internal_value(data)
+
     def validate_contact(self, value):
         import re
         clean = re.sub(r'\D', '', str(value or ''))
@@ -33,10 +40,30 @@ class NurseSerializer(serializers.ModelSerializer):
         return str(value).strip().lower()
 
 
-class NurseNotificationSerializer(NotificationSerializerBase):
+class NurseNotificationSerializer(serializers.ModelSerializer):
+    """
+    Receive-only serializer for Nurse incoming notifications.
+    Provides complete notification details including sender, message, timestamps, and read status.
+    """
     class Meta:
         model = NurseNotification
-        fields = "__all__"
+        fields = [
+            'id',
+            'title',
+            'message',
+            'sender_name',
+            'sender_email',
+            'sender_role',
+            'recipient_name',
+            'recipient_email',
+            'recipient_role',
+            'is_important',
+            'is_read',
+            'read_at',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = fields
 
 
 NotificationSerializer = NurseNotificationSerializer

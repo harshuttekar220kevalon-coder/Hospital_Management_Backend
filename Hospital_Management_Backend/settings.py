@@ -66,7 +66,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'Hospital_Management_Backend.wsgi.application'
 
-# Database Configuration (Local ke liye SQLite, Render ke liye PostgreSQL)
 DATABASES = {
     'default': dj_database_url.config(
         default='sqlite:///db.sqlite3',

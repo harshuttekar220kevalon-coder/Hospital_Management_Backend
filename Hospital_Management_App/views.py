@@ -833,6 +833,17 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Appointment.objects.select_related('hospital', 'doctor', 'nurse').all()
 
+        # Filter by Doctor
+        doctor_param = self.request.query_params.get('doctor') or self.request.query_params.get('doctor_id')
+        doctor_email = self.request.query_params.get('doctor_email')
+        if doctor_param:
+            if str(doctor_param).isdigit():
+                queryset = queryset.filter(doctor_id=int(doctor_param))
+            else:
+                queryset = queryset.filter(Q(doctor__doctor_id__iexact=doctor_param) | Q(doctor__email__iexact=doctor_param))
+        elif doctor_email:
+            queryset = queryset.filter(doctor__email__iexact=doctor_email)
+
         # Filter by Nurse
         nurse_param = self.request.query_params.get('nurse') or self.request.query_params.get('nurse_id')
         nurse_email = self.request.query_params.get('nurse_email')
@@ -969,17 +980,20 @@ def user_login(request):
         if account.password == password or account.check_password(password):
             role = "SUPER ADMIN" if account.is_superuser else "ADMIN"
             name = f"{account.first_name} {account.last_name}".strip() or account.username
+            token = signing.dumps({"user_id": account.pk, "email": account.email, "role": role}, salt="hospital-auth-token")
             try:
                 if hasattr(request, "session"):
                     request.session["user_id"] = account.pk
                     request.session["role"] = role
                     request.session["email"] = account.email
+                    request.session["token"] = token
                     request.session.modified = True
             except Exception:
                 pass
             return Response({
                 "message": "Login successful",
                 "role": role,
+                "token": token,
                 "user": {
                     "id": account.pk,
                     "name": name,
@@ -988,41 +1002,54 @@ def user_login(request):
                     "is_superuser": account.is_superuser,
                     "is_approved": True,
                     "is_active": account.is_active,
+                    "token": token,
+                    "session_token": token,
                     "notification_token": _notification_identity(account.email, role),
                 }
             })
 
-    # 2. Staff & Patient Role Models (HospitalAdmin, Doctor, Nurse, Receptionist, Patient)
+    # 2. Staff & Patient Role Models (Doctor, Nurse, Receptionist, HospitalAdmin, Patient)
+    is_email_input = "@" in raw_identifier
+    clean_digits = "".join(filter(str.isdigit, raw_identifier))
+
     role_models = (
-        (HospitalAdmin, "ADMIN", "employee_id"),
         (Doctor, "DOCTOR", "doctor_id"),
         (Nurse, "NURSES", "nurse_id"),
         (Receptionist, "RECEPTIONISTS", "receptionist_id"),
+        (HospitalAdmin, "ADMIN", "employee_id"),
         (Patient, "PATIENTS", "patient_id"),
     )
     for model, role, id_attr in role_models:
-        query = Q(email__iexact=raw_identifier)
-        if id_attr:
-            query |= Q(**{f"{id_attr}__iexact": raw_identifier})
-        if hasattr(model, "name"):
-            query |= Q(name__iexact=raw_identifier)
-            if role == "DOCTOR":
-                query |= Q(name__iexact=f"Dr. {raw_identifier}") | Q(name__iexact=f"Dr. {raw_identifier.strip()}")
-        if hasattr(model, "phone"):
-            query |= Q(phone__iexact=raw_identifier)
-        if hasattr(model, "contact"):
-            query |= Q(contact__iexact=raw_identifier)
+        if is_email_input:
+            query = Q(email__iexact=raw_identifier)
+        else:
+            query = Q()
+            if id_attr:
+                query |= Q(**{f"{id_attr}__iexact": raw_identifier})
+            if clean_digits and len(clean_digits) >= 10:
+                if hasattr(model, "phone"):
+                    query |= Q(phone__iexact=raw_identifier)
+                if hasattr(model, "contact"):
+                    query |= Q(contact__iexact=raw_identifier)
+            if not query:
+                if hasattr(model, "name"):
+                    query = Q(name__iexact=raw_identifier)
+                    if role == "DOCTOR":
+                        query |= Q(name__iexact=f"Dr. {raw_identifier}") | Q(name__iexact=f"Dr. {raw_identifier.strip()}")
 
         candidates = model.objects.filter(query)
         for user in candidates:
             is_valid_pw = (user.password == password) or (hasattr(user, "check_password") and user.check_password(password))
             if is_valid_pw:
                 # Save clean isolated session for this specific user
+                user_email = getattr(user, "email", "")
+                token = signing.dumps({"user_id": user.pk, "email": user_email, "role": role}, salt="hospital-auth-token")
                 try:
                     if hasattr(request, "session"):
                         request.session["user_id"] = user.pk
                         request.session["role"] = role
-                        request.session["email"] = getattr(user, "email", "")
+                        request.session["email"] = user_email
+                        request.session["token"] = token
                         if id_attr:
                             request.session[id_attr] = getattr(user, id_attr, "")
                         request.session.modified = True
@@ -1030,12 +1057,13 @@ def user_login(request):
                     pass
 
                 user_name = getattr(user, "name", "") or getattr(user, "username", "")
-                user_email = getattr(user, "email", "")
                 user_data = {
                     "id": user.pk,
                     "name": user_name,
                     "email": user_email,
                     "role": role,
+                    "token": token,
+                    "session_token": token,
                     "notification_token": _notification_identity(user_email, role),
                     "is_active": getattr(user, "is_active", True),
                     "is_approved": getattr(user, "is_approved", True if role in ("SUPER ADMIN", "PATIENTS") else False),
@@ -1060,7 +1088,7 @@ def user_login(request):
                     user_data["hospital"] = h_val
                     user_data["hospitals"] = [h_val] if h_val else []
 
-                return Response({"message": "Login successful", "role": role, "user": user_data})
+                return Response({"message": "Login successful", "role": role, "user": user_data, "token": token})
 
     return Response({"message": "Invalid email or password."}, status=status.HTTP_401_UNAUTHORIZED)
 

@@ -956,14 +956,43 @@ def user_login(request):
     if not raw_identifier or not password:
         return Response({"message": "Email and password are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-    account = User.objects.filter(Q(email__iexact=raw_identifier) | Q(username__iexact=raw_identifier)).first()
-    if account and (account.password == password or account.check_password(password)):
-        role = "SUPER ADMIN" if account.is_superuser else "ADMIN"
-        name = f"{account.first_name} {account.last_name}".strip() or account.username
-        return Response({"message": "Login successful", "role": role,
-                         "user": {"id": account.pk, "name": name, "email": account.email, "role": role,
-                                  "notification_token": _notification_identity(account.email, role)}})
+    # Clean existing session to avoid cross-user session pollution
+    try:
+        if hasattr(request, "session"):
+            request.session.flush()
+    except Exception:
+        pass
 
+    # 1. Super Admin / Django auth User
+    super_accounts = User.objects.filter(Q(email__iexact=raw_identifier) | Q(username__iexact=raw_identifier))
+    for account in super_accounts:
+        if account.password == password or account.check_password(password):
+            role = "SUPER ADMIN" if account.is_superuser else "ADMIN"
+            name = f"{account.first_name} {account.last_name}".strip() or account.username
+            try:
+                if hasattr(request, "session"):
+                    request.session["user_id"] = account.pk
+                    request.session["role"] = role
+                    request.session["email"] = account.email
+                    request.session.modified = True
+            except Exception:
+                pass
+            return Response({
+                "message": "Login successful",
+                "role": role,
+                "user": {
+                    "id": account.pk,
+                    "name": name,
+                    "email": account.email,
+                    "role": role,
+                    "is_superuser": account.is_superuser,
+                    "is_approved": True,
+                    "is_active": account.is_active,
+                    "notification_token": _notification_identity(account.email, role),
+                }
+            })
+
+    # 2. Staff & Patient Role Models (HospitalAdmin, Doctor, Nurse, Receptionist, Patient)
     role_models = (
         (HospitalAdmin, "ADMIN", "employee_id"),
         (Doctor, "DOCTOR", "doctor_id"),
@@ -975,11 +1004,64 @@ def user_login(request):
         query = Q(email__iexact=raw_identifier)
         if id_attr:
             query |= Q(**{f"{id_attr}__iexact": raw_identifier})
-        user = model.objects.filter(query).first()
-        if user and (user.password == password or user.check_password(password)):
-            return Response({"message": "Login successful", "role": role,
-                             "user": {"id": user.pk, "name": user.name, "email": user.email, "role": role,
-                                      "notification_token": _notification_identity(user.email, role)}})
+        if hasattr(model, "name"):
+            query |= Q(name__iexact=raw_identifier)
+            if role == "DOCTOR":
+                query |= Q(name__iexact=f"Dr. {raw_identifier}") | Q(name__iexact=f"Dr. {raw_identifier.strip()}")
+        if hasattr(model, "phone"):
+            query |= Q(phone__iexact=raw_identifier)
+        if hasattr(model, "contact"):
+            query |= Q(contact__iexact=raw_identifier)
+
+        candidates = model.objects.filter(query)
+        for user in candidates:
+            is_valid_pw = (user.password == password) or (hasattr(user, "check_password") and user.check_password(password))
+            if is_valid_pw:
+                # Save clean isolated session for this specific user
+                try:
+                    if hasattr(request, "session"):
+                        request.session["user_id"] = user.pk
+                        request.session["role"] = role
+                        request.session["email"] = getattr(user, "email", "")
+                        if id_attr:
+                            request.session[id_attr] = getattr(user, id_attr, "")
+                        request.session.modified = True
+                except Exception:
+                    pass
+
+                user_name = getattr(user, "name", "") or getattr(user, "username", "")
+                user_email = getattr(user, "email", "")
+                user_data = {
+                    "id": user.pk,
+                    "name": user_name,
+                    "email": user_email,
+                    "role": role,
+                    "notification_token": _notification_identity(user_email, role),
+                    "is_active": getattr(user, "is_active", True),
+                    "is_approved": getattr(user, "is_approved", True if role in ("SUPER ADMIN", "PATIENTS") else False),
+                    "phone": getattr(user, "phone", "") or getattr(user, "contact", ""),
+                    "contact": getattr(user, "phone", "") or getattr(user, "contact", ""),
+                    "specialization": getattr(user, "specialization", ""),
+                    "department": getattr(user, "department", ""),
+                    "qualification": getattr(user, "qualification", ""),
+                    "experience": getattr(user, "experience", ""),
+                    "ward": getattr(user, "ward", ""),
+                    "shift": getattr(user, "shift", "") or getattr(user, "Shifts", ""),
+                }
+                if id_attr:
+                    user_data[id_attr] = getattr(user, id_attr, None)
+
+                if hasattr(user, "hospitals"):
+                    hosp_ids = list(user.hospitals.values_list("id", flat=True))
+                    user_data["hospitals"] = hosp_ids
+                    user_data["hospital"] = hosp_ids[0] if hosp_ids else None
+                elif hasattr(user, "hospital"):
+                    h_val = getattr(user.hospital, "id", user.hospital)
+                    user_data["hospital"] = h_val
+                    user_data["hospitals"] = [h_val] if h_val else []
+
+                return Response({"message": "Login successful", "role": role, "user": user_data})
+
     return Response({"message": "Invalid email or password."}, status=status.HTTP_401_UNAUTHORIZED)
 
 

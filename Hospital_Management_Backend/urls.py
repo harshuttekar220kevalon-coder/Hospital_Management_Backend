@@ -17,7 +17,6 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import include, path
-from django.http import JsonResponse
 from rest_framework.routers import DefaultRouter
 from Hospital_Management_App.views import (
     AppointmentViewSet,
@@ -32,13 +31,6 @@ from Hospital_Management_App.views import (
     user_signup,
 )
 
-def health_check(request):
-    return JsonResponse({
-        "status": "healthy",
-        "service": "Hospital Management Backend API",
-        "environment": "online" if not request.get_host().startswith(('localhost', '127.0.0.1')) else "offline"
-    })
-
 patient_router = DefaultRouter()
 patient_router.register('notifications', PatientNotificationViewSet, basename='patient-notification')
 patient_router.register('', PatientViewSet, basename='patient')
@@ -47,9 +39,6 @@ appointment_router = DefaultRouter()
 appointment_router.register('', AppointmentViewSet, basename='appointment')
 
 urlpatterns = [
-    path('', health_check, name='root_health_check'),
-    path('api/', health_check, name='api_health_check'),
-    path('healthz/', health_check, name='render_health_check'),
     path('admin/', admin.site.urls),
     path('api/login/', user_login, name='user_login'),
     path('api/reset-password/', user_reset_password, name='user_reset_password'),

@@ -84,7 +84,7 @@ class Appointment(models.Model):
     attached_document = models.FileField(upload_to='appointment_documents/', blank=True, null=True)
     contact = models.CharField(max_length=14, null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
-    Gender = models.CharField(null=True, blank=True, choices=GENDER)
+    Gender = models.CharField(max_length=20, null=True, blank=True, choices=GENDER)
     address = models.TextField(null=True, blank=True)
     checkup_status = models.CharField(max_length=50, blank=True, null=True, choices=CHECKUP_STATUS_CHOICES)
     Health_Care = models.CharField(max_length=50, choices=HEALTH, default='Not Done')

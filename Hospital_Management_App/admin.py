@@ -14,7 +14,7 @@ class AppointmentAdmin(admin.ModelAdmin):
     list_filter = ("status", "payment_status", "hospital")
     search_fields = ("Appoment_id", "patient_Name", "email")
     readonly_fields = ("Appoment_id",)
-
+ 
 
 @admin.register(PatientNotification)
 class PatientNotificationAdmin(admin.ModelAdmin):
